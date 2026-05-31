@@ -126,17 +126,16 @@ export default function StudentRequestPage() {
       duration,
       status: 'pending',
     })
-    if (!error) {
-      await fetch('/api/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: user.id, course, subject,
-          date: selStart.date, time: selStart.time, duration,
-        }),
-      })
-      setSuccess(true)
-    }
+    if (error) console.error('Session insert error:', error)
+    await fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId: user.id, course, subject,
+        date: selStart.date, time: selStart.time, duration,
+      }),
+    }).catch(() => {})
+    setSuccess(true)
     setSubmitting(false)
   }
 
@@ -160,6 +159,11 @@ export default function StudentRequestPage() {
           setSelStart(null); setSelBlock(null)
         }}>
           Request Another Session
+        </button>
+        <button className="btn-secondary" style={{ marginTop: '0.75rem', display: 'block', width: '100%' }} onClick={async () => {
+          await supabase.auth.signOut(); router.push('/')
+        }}>
+          Sign Out
         </button>
       </div>
     )

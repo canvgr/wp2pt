@@ -135,8 +135,10 @@ export default function TutorAvailabilityPage() {
     })
 
     const dates = Array.from(new Set(rows.map(r => r.available_date)))
-    await supabase.from('tutor_availability').delete().eq('tutor_id', user.id).in('available_date', dates)
-    await supabase.from('tutor_availability').insert(rows)
+    const { error: delError } = await supabase.from('tutor_availability').delete().eq('tutor_id', user.id).in('available_date', dates)
+    if (delError) console.error('Delete error:', delError)
+    const { error: insError } = await supabase.from('tutor_availability').insert(rows)
+    if (insError) console.error('Insert error:', insError)
     setSuccess(true)
     setSubmitting(false)
   }
@@ -152,6 +154,11 @@ export default function TutorAvailabilityPage() {
         <button className="btn-primary" style={{ marginTop: '1.5rem', background: '#155e3b' }}
           onClick={() => { setSuccess(false); setStep(1); setSetSlots(new Set()); setBlockSlots(new Set()) }}>
           Update Availability
+        </button>
+        <button className="btn-secondary" style={{ marginTop: '0.75rem', display: 'block', width: '100%' }} onClick={async () => {
+          await supabase.auth.signOut(); router.push('/')
+        }}>
+          Sign Out
         </button>
       </div>
     )
