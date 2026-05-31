@@ -33,7 +33,18 @@ type GradeEntry = {
   sessions: { date: string; grade: number | null; status: string }[]
 }
 
-type View = 'calendar' | 'hours' | 'grades'
+type TutorAvailabilityRow = {
+  id: string
+  available_date: string
+  available_time: string
+  duration: number
+  courses: string[]
+  subject: string
+  is_booked: boolean
+  tutor: { first_name: string; last_name: string; email: string } | null
+}
+
+type View = 'calendar' | 'hours' | 'grades' | 'available'
 
 export default function ProctorDashboardPage() {
   const router = useRouter()
@@ -43,6 +54,7 @@ export default function ProctorDashboardPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [gradeEdits, setGradeEdits] = useState<Record<string, string>>({})
   const [savingGrade, setSavingGrade] = useState<string | null>(null)
+  const [availability, setAvailability] = useState<TutorAvailabilityRow[]>([])
 
   const days = getWeekDays(weekOffset)
 
@@ -56,6 +68,14 @@ export default function ProctorDashboardPage() {
       .order('session_date', { ascending: true })
       .order('session_time', { ascending: true })
     setSessions((data as unknown as SessionRow[]) || [])
+    const { data: avail } = await supabase
+      .from('tutor_availability')
+      .select(`id, available_date, available_time, duration, courses, subject, is_booked,
+        tutor:profiles!tutor_availability_tutor_id_fkey(first_name, last_name, email)`)
+      .eq('is_booked', false)
+      .order('available_date', { ascending: true })
+      .order('available_time', { ascending: true })
+    setAvailability((avail as unknown as TutorAvailabilityRow[]) || [])
     setLoading(false)
   }, [])
 
@@ -169,12 +189,13 @@ export default function ProctorDashboardPage() {
         <div className="stat-card"><div className="stat-label">Total Tutor Min</div><div className="stat-value">{stats.totalMins}</div></div>
       </div>
 
-      {/* Three view buttons */}
+      {/* Four view buttons */}
       <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
         {([
-          { id: 'calendar', icon: '📅', label: 'Session Calendar', desc: 'Paired slots in green, unpaired in yellow' },
-          { id: 'hours',    icon: '⏱',  label: 'Tutor Hours',      desc: 'Minutes volunteered per tutor' },
-          { id: 'grades',   icon: '📈', label: 'Student Progress',  desc: 'Grade improvement over sessions' },
+          { id: 'calendar',  icon: '📅', label: 'Session Calendar',    desc: 'Paired slots in green, unpaired in yellow' },
+          { id: 'hours',     icon: '⏱',  label: 'Tutor Hours',         desc: 'Minutes volunteered per tutor' },
+          { id: 'grades',    icon: '📈', label: 'Student Progress',     desc: 'Grade improvement over sessions' },
+          { id: 'available', icon: '🙋', label: 'Tutors Available',     desc: 'Unmatched tutors ready to help' },
         ] as const).map(v => (
           <button key={v.id} style={view === v.id ? btnActive : btnBase} onClick={() => setView(v.id)}>
             <div style={{ fontSize: '1.5rem', marginBottom: '6px' }}>{v.icon}</div>
@@ -400,6 +421,47 @@ export default function ProctorDashboardPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── VIEW: AVAILABLE TUTORS ── */}
+      {view === 'available' && (
+        <div>
+          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            Volunteer Tutors who have set availability but have not yet been matched with a student.
+          </p>
+          {loading ? (
+            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
+          ) : availability.length === 0 ? (
+            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No unmatched tutors available right now.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {availability.map((a, i) => (
+                <div key={i} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
+                    {a.tutor ? (a.tutor.first_name[0] + a.tutor.last_name[0]).toUpperCase() : '?'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>
+                      {a.tutor ? `${a.tutor.first_name} ${a.tutor.last_name}` : 'Unknown'}
+                    </div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.tutor?.email}</div>
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', marginBottom: '3px' }}>
+                      {new Date(a.available_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {a.available_time} · {a.duration} min
+                    </div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {a.subject === 'math' ? '📐 Math' : '🔬 Science'} · {Array.isArray(a.courses) ? a.courses.join(', ') : a.courses}
+                    </div>
+                  </div>
+                  <div style={{ background: '#eff9f5', border: '0.5px solid #bbf7d0', borderRadius: '999px', padding: '3px 10px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>
+                    Available
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
