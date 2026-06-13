@@ -135,10 +135,40 @@ export default function TutorAvailabilityPage() {
     })
 
     const dates = Array.from(new Set(rows.map(r => r.available_date)))
-    const { error: delError } = await supabase.from('tutor_availability').delete().eq('tutor_id', user.id).in('available_date', dates)
+    const { error: delError } = await supabase
+      .from('tutor_availability')
+      .delete()
+      .eq('tutor_id', user.id)
+      .in('available_date', dates)
     if (delError) console.error('Delete error:', delError)
-    const { error: insError } = await supabase.from('tutor_availability').insert(rows)
+
+    // Insert availability rows and capture the inserted IDs
+    const { data: insertedRows, error: insError } = await supabase
+      .from('tutor_availability')
+      .insert(rows)
+      .select('id, available_date, available_time')
     if (insError) console.error('Insert error:', insError)
+
+    // Call match API with trigger: 'tutor' for each slot
+    // This checks if any pending student request already exists for this slot
+    if (insertedRows) {
+      for (const row of insertedRows) {
+        await fetch('/api/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trigger: 'tutor',
+            availabilityId: row.id,
+            tutorId: user.id,
+            courses: allSelectedCourses,
+            date: row.available_date,
+            time: row.available_time,
+            duration,
+          }),
+        }).catch(() => {})
+      }
+    }
+
     setSuccess(true)
     setSubmitting(false)
   }
@@ -243,14 +273,12 @@ export default function TutorAvailabilityPage() {
 
         {step === 2 && (
           <>
-            {/* Courses reminder */}
             <div style={{ background: '#eff9f5', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '0.6rem 1rem', marginBottom: '1rem' }}>
               <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#155e3b', margin: 0 }}>
                 <strong>Your courses:</strong> {allSelectedCourses.join(', ')}
               </p>
             </div>
 
-            {/* Duration */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>Session length:</span>
               {([15, 30] as Duration[]).map(d => (
@@ -269,7 +297,6 @@ export default function TutorAvailabilityPage() {
               </span>
             </div>
 
-            {/* Legend */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: '#f9f6ef', borderRadius: '8px' }}>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Student demand:</span>
               {[
@@ -287,7 +314,6 @@ export default function TutorAvailabilityPage() {
               ))}
             </div>
 
-            {/* Week nav */}
             <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
               <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => Math.max(0, w - 1))}>← Prev</button>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>
@@ -296,7 +322,6 @@ export default function TutorAvailabilityPage() {
               <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => w + 1)}>Next →</button>
             </div>
 
-            {/* Calendar */}
             <div style={{ overflowX: 'auto' }}>
               <table className="cal-table">
                 <thead>
