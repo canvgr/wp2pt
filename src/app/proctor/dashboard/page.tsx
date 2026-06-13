@@ -96,12 +96,10 @@ export default function ProctorDashboardPage() {
     loadSessions()
   }
 
-  // ── Calendar: slot lookup ──────────────────────────────────
   function getSlot(date: string, time: string): SessionRow | undefined {
     return sessions.find(s => s.session_date === date && s.session_time === time)
   }
 
-  // ── Tutor hours ────────────────────────────────────────────
   const tutorStats: TutorStat[] = (() => {
     const map: Record<string, TutorStat> = {}
     sessions.filter(s => s.tutor && s.status !== 'cancelled').forEach(s => {
@@ -121,7 +119,6 @@ export default function ProctorDashboardPage() {
 
   const maxMins = tutorStats[0]?.mins || 1
 
-  // ── Grade history ──────────────────────────────────────────
   const gradeHistory: GradeEntry[] = (() => {
     const map: Record<string, GradeEntry> = {}
     sessions.forEach(s => {
@@ -208,7 +205,6 @@ export default function ProctorDashboardPage() {
       {/* ── VIEW: CALENDAR ── */}
       {view === 'calendar' && (
         <div>
-          {/* Legend */}
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', padding: '6px 10px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '7px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Key:</span>
             {[
@@ -223,13 +219,15 @@ export default function ProctorDashboardPage() {
             ))}
           </div>
 
-          {/* Week nav */}
+          {/* Week nav — FIX: removed Math.max(0, ...) so Prev week works */}
           <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
-            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => Math.max(0, w - 1))}>← Prev week</button>
+            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setWeekOffset(w => w - 1)}>← Prev week</button>
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>
               {formatDate(days[0])} – {formatDate(days[4])}
             </span>
-            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => w + 1)}>Next week →</button>
+            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setWeekOffset(w => w + 1)}>Next week →</button>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
