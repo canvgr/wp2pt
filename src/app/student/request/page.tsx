@@ -47,7 +47,7 @@ export default function StudentRequestPage() {
       .select('available_date, available_time')
       .in('available_date', dateStrings)
       .contains('courses', [course])
-      .eq('is_booked', false) // only tutors not yet matched to any student
+      .eq('is_booked', false)
     const counts: Record<string, number> = {}
     for (const row of data || []) {
       const k = slotKey(row.available_date, row.available_time)
@@ -116,25 +116,41 @@ export default function StudentRequestPage() {
   async function handleSubmit() {
     if (!selStart || !user) return
     setSubmitting(true)
-    const { error } = await supabase.from('sessions').insert({
-      student_id: user.id,
-      subject,
-      course,
-      student_grade: grade ? parseInt(grade) : null,
-      session_date: selStart.date,
-      session_time: selStart.time,
-      duration,
-      status: 'pending',
-    })
+
+    // Insert session row and capture the returned session id
+    const { data: sessionData, error } = await supabase
+      .from('sessions')
+      .insert({
+        student_id: user.id,
+        subject,
+        course,
+        student_grade: grade ? parseInt(grade) : null,
+        session_date: selStart.date,
+        session_time: selStart.time,
+        duration,
+        status: 'pending',
+      })
+      .select('id')
+      .single()
+
     if (error) console.error('Session insert error:', error)
+
+    // Call match API with trigger: 'student' so it searches for an already-available tutor
     await fetch('/api/match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        studentId: user.id, course, subject,
-        date: selStart.date, time: selStart.time, duration,
+        trigger: 'student',
+        sessionId: sessionData?.id,
+        studentId: user.id,
+        course,
+        subject,
+        date: selStart.date,
+        time: selStart.time,
+        duration,
       }),
     }).catch(() => {})
+
     setSuccess(true)
     setSubmitting(false)
   }
@@ -191,7 +207,6 @@ export default function StudentRequestPage() {
       <div className="card">
         {step === 1 && (
           <>
-            {/* Subject toggle */}
             <div className="form-group">
               <label>What subject do you need help with?</label>
               <div className="subject-toggle">
@@ -206,7 +221,6 @@ export default function StudentRequestPage() {
               </div>
             </div>
 
-            {/* Course picker */}
             <div className="form-group">
               <label>Which {subject === 'math' ? 'Math' : 'Science'} course do you need help with?</label>
               <div className="course-list">
@@ -223,7 +237,6 @@ export default function StudentRequestPage() {
               </div>
             </div>
 
-            {/* Grade entry — shown as soon as a course is selected */}
             {course && (
               <div className="form-group">
                 <div style={{
@@ -285,7 +298,6 @@ export default function StudentRequestPage() {
                     </p>
                   )}
 
-                  {/* Grade context chip */}
                   {grade && !gradeError && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -318,7 +330,6 @@ export default function StudentRequestPage() {
 
         {step === 2 && (
           <>
-            {/* Course + grade reminder */}
             <div style={{
               background: '#f9f6ef', border: '1px solid #e2d9c8',
               borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem',
@@ -330,7 +341,6 @@ export default function StudentRequestPage() {
               <span><strong>Subject:</strong> {subject === 'math' ? '📐 Math' : '🔬 Science'}</span>
             </div>
 
-            {/* Duration */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>Session length:</span>
               {([15, 30] as Duration[]).map(d => (
@@ -351,7 +361,6 @@ export default function StudentRequestPage() {
               )}
             </div>
 
-            {/* Legend */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: '#f9f6ef', borderRadius: '8px' }}>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Free tutors for {course}:
@@ -371,7 +380,6 @@ export default function StudentRequestPage() {
               ))}
             </div>
 
-            {/* Week nav */}
             <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
               <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => Math.max(0, w - 1))}>← Prev</button>
               <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>
@@ -380,7 +388,6 @@ export default function StudentRequestPage() {
               <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => setWeekOffset(w => w + 1)}>Next →</button>
             </div>
 
-            {/* Calendar */}
             <div style={{ overflowX: 'auto' }}>
               <table className="cal-table">
                 <thead>
