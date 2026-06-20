@@ -20,7 +20,6 @@ export const MATH_COURSES = [
   'Precalculus',
   'Statistics',
 ]
-
 export const SCIENCE_COURSES = [
   'Advanced Biology',
   'Advanced Physical Science',
@@ -40,20 +39,21 @@ export const SCIENCE_COURSES = [
   'Physical Science',
   'Physics',
 ]
-
 export const TIME_SLOTS = [
-  '3:00 PM', '3:15 PM', '3:30 PM', '3:45 PM',
-  '4:00 PM', '4:15 PM', '4:30 PM', '4:45 PM',
-  '5:00 PM', '5:15 PM', '5:30 PM',
+  '3:00 PM',
+  '3:30 PM',
+  '4:00 PM',
+  '4:30 PM',
+  '5:00 PM',
+  '5:30 PM',
 ]
-
+export const DURATION = 30
 export function getWeekDays(weekOffset = 0) {
   const today = new Date()
   const monday = new Date(today)
   const day = today.getDay()
   const diff = day === 0 ? -6 : 1 - day
   monday.setDate(today.getDate() + diff + weekOffset * 7)
-
   const days = []
   for (let i = 0; i < 5; i++) {
     const d = new Date(monday)
@@ -62,11 +62,9 @@ export function getWeekDays(weekOffset = 0) {
   }
   return days
 }
-
 export function formatDate(d: Date) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
 }
-
 export function formatDateISO(d: Date) {
   return d.toISOString().split('T')[0]
 }
