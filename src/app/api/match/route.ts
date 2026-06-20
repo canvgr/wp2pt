@@ -38,12 +38,12 @@ export async function POST(req: NextRequest) {
 
       await supabase
         .from('tutor_availability')
-        .update({ is_booked: true, booked_session_id: sessionId })
+        .update({ is_booked: true })
         .eq('id', slot.id)
 
       await supabase
         .from('sessions')
-        .update({ status: 'matched', tutor_id: tutor.id, tutor_availability_id: slot.id })
+        .update({ status: 'matched', tutor_id: tutor.id })
         .eq('id', sessionId)
 
       const { data: studentProfile } = await supabase
@@ -91,12 +91,12 @@ export async function POST(req: NextRequest) {
 
       await supabase
         .from('tutor_availability')
-        .update({ is_booked: true, booked_session_id: session.id })
+        .update({ is_booked: true })
         .eq('id', availabilityId)
 
       await supabase
         .from('sessions')
-        .update({ status: 'matched', tutor_id: tutorId, tutor_availability_id: availabilityId })
+        .update({ status: 'matched', tutor_id: tutorId })
         .eq('id', session.id)
 
       const { data: tutorProfile } = await supabase
