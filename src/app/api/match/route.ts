@@ -9,17 +9,28 @@
 // Both directions send confirmation emails to both parties when a match is found.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { sendStudentConfirmation, sendTutorConfirmation } from '@/lib/email'
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const supabase = createServerClient()
+    const supabase = getSupabase()
 
     // ── DIRECTION A: Student just submitted → find an available tutor ──────────
     if (body.trigger === 'student') {
       const { sessionId, studentId, course, date, time, duration } = body
+
+      if (!sessionId) {
+        return NextResponse.json({ matched: false, reason: 'No sessionId provided' })
+      }
 
       // Find an available tutor slot that matches course / date / time
       const { data: slots } = await supabase
@@ -36,12 +47,9 @@ export async function POST(req: NextRequest) {
         .contains('courses', [course])
 
       if (!slots || slots.length === 0) {
-        // No tutor available yet — session stays pending, will be picked up
-        // when a matching tutor submits availability (Direction B below)
         return NextResponse.json({ matched: false, reason: 'No tutor available yet — session is pending' })
       }
 
-      // Pick the first available slot (can add priority logic here later)
       const slot = slots[0]
       const tutor = slot.tutor
 
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
         .update({ is_booked: true, booked_session_id: sessionId })
         .eq('id', slot.id)
 
-      // Update session to matched
+      // Update session to matched — using correct column names
       await supabase
         .from('sessions')
         .update({
@@ -68,7 +76,6 @@ export async function POST(req: NextRequest) {
         .eq('id', studentId)
         .single()
 
-      // Send confirmation emails to both
       if (studentProfile) {
         await sendStudentConfirmation({
           studentEmail: studentProfile.email,
@@ -100,7 +107,7 @@ export async function POST(req: NextRequest) {
     if (body.trigger === 'tutor') {
       const { availabilityId, tutorId, courses, date, time, duration } = body
 
-      // Find a pending session that overlaps on date/time and needs one of these courses
+      // FIX: use session_date and session_time (correct column names)
       const { data: pendingSessions } = await supabase
         .from('sessions')
         .select(`
@@ -110,16 +117,14 @@ export async function POST(req: NextRequest) {
           )
         `)
         .eq('status', 'pending')
-        .eq('requested_date', date)
-        .eq('requested_time', time)
-        .in('course', courses)   // match any course the tutor can teach
+        .eq('session_date', date)
+        .eq('session_time', time)
+        .in('course', courses)
 
       if (!pendingSessions || pendingSessions.length === 0) {
-        // No waiting student yet — availability stays open for when a student requests
         return NextResponse.json({ matched: false, reason: 'No pending student yet — availability is saved' })
       }
 
-      // Match with the earliest pending request
       const session = pendingSessions[0]
       const student = session.student
 
@@ -146,7 +151,6 @@ export async function POST(req: NextRequest) {
         .eq('id', tutorId)
         .single()
 
-      // Send confirmation emails to both
       if (student && tutorProfile) {
         await sendStudentConfirmation({
           studentEmail: student.email,
