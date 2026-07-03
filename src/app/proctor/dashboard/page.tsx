@@ -52,9 +52,8 @@ export default function ProctorDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('calendar')
   const [weekOffset, setWeekOffset] = useState(0)
-  const [gradeEdits, setGradeEdits] = useState<Record<string, string>>({})
-  const [savingGrade, setSavingGrade] = useState<string | null>(null)
   const [availability, setAvailability] = useState<TutorAvailabilityRow[]>([])
+  const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
 
   const days = getWeekDays(weekOffset)
 
@@ -72,7 +71,6 @@ export default function ProctorDashboardPage() {
       .from('tutor_availability')
       .select(`id, available_date, available_time, duration, courses, subject, is_booked,
         tutor:profiles!tutor_availability_tutor_id_fkey(first_name, last_name, email)`)
-      .eq('is_booked', false)
       .order('available_date', { ascending: true })
       .order('available_time', { ascending: true })
     setAvailability((avail as unknown as TutorAvailabilityRow[]) || [])
@@ -88,16 +86,14 @@ export default function ProctorDashboardPage() {
     })
   }, [router, loadSessions])
 
-  async function saveGrade(sessionId: string, grade: string) {
-    setSavingGrade(sessionId)
-    await supabase.from('sessions').update({ student_grade: grade ? parseInt(grade) : null }).eq('id', sessionId)
-    setSavingGrade(null)
-    setGradeEdits(prev => { const n = { ...prev }; delete n[sessionId]; return n })
-    loadSessions()
+  // Get ALL sessions for a given date+time slot
+  function getSlots(date: string, time: string): SessionRow[] {
+    return sessions.filter(s => s.session_date === date && s.session_time === time)
   }
 
-  function getSlot(date: string, time: string): SessionRow | undefined {
-    return sessions.find(s => s.session_date === date && s.session_time === time)
+  // Get unbooked tutor availability for a given date+time slot
+  function getAvailableTutors(date: string, time: string): TutorAvailabilityRow[] {
+    return availability.filter(a => a.available_date === date && a.available_time === time && !a.is_booked)
   }
 
   const tutorStats: TutorStat[] = (() => {
@@ -189,7 +185,7 @@ export default function ProctorDashboardPage() {
       {/* Four view buttons */}
       <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
         {([
-          { id: 'calendar',  icon: '📅', label: 'Session Calendar',    desc: 'Paired slots in green, unpaired in yellow' },
+          { id: 'calendar',  icon: '📅', label: 'Session Calendar',    desc: 'Click any slot to see full detail' },
           { id: 'hours',     icon: '⏱',  label: 'Tutor Hours',         desc: 'Minutes volunteered per tutor' },
           { id: 'grades',    icon: '📈', label: 'Student Progress',     desc: 'Grade improvement over sessions' },
           { id: 'available', icon: '🙋', label: 'Tutors Available',     desc: 'Unmatched tutors ready to help' },
@@ -205,29 +201,31 @@ export default function ProctorDashboardPage() {
       {/* ── VIEW: CALENDAR ── */}
       {view === 'calendar' && (
         <div>
+          {/* Legend */}
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', padding: '6px 10px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '7px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Key:</span>
             {[
-              { bg: '#e8f5f0', border: '0.5px solid #9fe1cb', label: 'Paired session' },
-              { bg: '#fef9ee', border: '0.5px solid #fde68a', label: 'No tutor yet' },
-              { bg: '#f5f3ee', border: '0.5px solid #e2d9c8', label: 'No requests' },
+              { bg: '#e8f5f0', border: '0.5px solid #9fe1cb', label: 'Has paired sessions' },
+              { bg: '#fef9ee', border: '0.5px solid #fde68a', label: 'Has unmatched students' },
+              { bg: '#f5f3ee', border: '0.5px solid #e2d9c8', label: 'No activity' },
             ].map(l => (
               <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: l.bg, border: l.border }} />
                 {l.label}
               </div>
             ))}
+            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '4px' }}>· Click any slot to expand</span>
           </div>
 
-          {/* Week nav — FIX: removed Math.max(0, ...) so Prev week works */}
+          {/* Week nav */}
           <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
             <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => setWeekOffset(w => w - 1)}>← Prev week</button>
+              onClick={() => { setWeekOffset(w => w - 1); setExpandedSlot(null) }}>← Prev week</button>
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>
               {formatDate(days[0])} – {formatDate(days[4])}
             </span>
             <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => setWeekOffset(w => w + 1)}>Next week →</button>
+              onClick={() => { setWeekOffset(w => w + 1); setExpandedSlot(null) }}>Next week →</button>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -251,35 +249,124 @@ export default function ProctorDashboardPage() {
                     <td>{time}</td>
                     {days.map(d => {
                       const dateStr = formatDateISO(d)
-                      const slot = getSlot(dateStr, time)
-                      const isPaired = slot && (slot.status === 'matched' || slot.status === 'completed')
-                      const isUnpaired = slot && slot.status === 'pending'
+                      const slotKey = `${dateStr}|${time}`
+                      const slotSessions = getSlots(dateStr, time)
+                      const freeTutors = getAvailableTutors(dateStr, time)
+                      const paired = slotSessions.filter(s => s.status === 'matched' || s.status === 'completed')
+                      const unmatched = slotSessions.filter(s => s.status === 'pending')
+                      const isExpanded = expandedSlot === slotKey
+                      const hasActivity = slotSessions.length > 0 || freeTutors.length > 0
 
-                      const bg = isPaired ? '#e8f5f0' : isUnpaired ? '#fef9ee' : '#f5f3ee'
-                      const color = isPaired ? '#0e4a2e' : isUnpaired ? '#633806' : '#ccc'
+                      const bg = paired.length > 0 ? '#e8f5f0' : unmatched.length > 0 ? '#fef9ee' : '#f5f3ee'
+                      const color = paired.length > 0 ? '#0e4a2e' : unmatched.length > 0 ? '#633806' : '#ccc'
 
                       return (
-                        <td key={dateStr}>
-                          <div style={{ padding: '3px 2px', borderRadius: '5px', background: bg, color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px', minHeight: '36px', width: '100%', fontSize: '0.7rem', userSelect: 'none' }}>
-                            {isPaired && (
+                        <td key={dateStr} style={{ verticalAlign: 'top', position: 'relative' }}>
+                          {/* Summary cell — always visible, clickable if has activity */}
+                          <div
+                            onClick={() => hasActivity && setExpandedSlot(isExpanded ? null : slotKey)}
+                            style={{
+                              padding: '3px 2px', borderRadius: '5px', background: bg, color,
+                              display: 'flex', flexDirection: 'column', alignItems: 'center',
+                              justifyContent: 'center', gap: '1px', minHeight: '44px', width: '100%',
+                              fontSize: '0.7rem', userSelect: 'none',
+                              cursor: hasActivity ? 'pointer' : 'default',
+                              border: isExpanded ? '2px solid var(--navy)' : '2px solid transparent',
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {!hasActivity && <span style={{ fontSize: '0.65rem' }}>—</span>}
+                            {hasActivity && (
                               <>
-                                <span style={{ fontWeight: 700, fontSize: '0.7rem' }}>Paired</span>
-                                <span style={{ fontSize: '0.6rem', lineHeight: 1.3, textAlign: 'center' }}>
-                                  {slot!.student ? `${slot!.student.last_name}` : '—'}<br />
-                                  <span style={{ opacity: 0.75 }}>↔ {slot!.tutor ? slot!.tutor.last_name : '—'}</span>
+                                {paired.length > 0 && (
+                                  <span style={{ fontWeight: 700, fontSize: '0.68rem' }}>
+                                    ✓ {paired.length} paired
+                                  </span>
+                                )}
+                                {unmatched.length > 0 && (
+                                  <span style={{ fontSize: '0.65rem', color: '#92400e' }}>
+                                    {unmatched.length} waiting
+                                  </span>
+                                )}
+                                {freeTutors.length > 0 && (
+                                  <span style={{ fontSize: '0.62rem', color: '#155e3b' }}>
+                                    {freeTutors.length} tutor{freeTutors.length !== 1 ? 's' : ''} free
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '0.58rem', opacity: 0.6 }}>
+                                  {isExpanded ? '▲' : '▼'}
                                 </span>
-                                <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{slot!.course.replace('AP ', '')}</span>
                               </>
                             )}
-                            {isUnpaired && (
-                              <>
-                                <span style={{ fontWeight: 700, fontSize: '0.7rem' }}>No tutor</span>
-                                <span style={{ fontSize: '0.6rem' }}>{slot!.student ? slot!.student.last_name : '—'}</span>
-                                <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{slot!.course.replace('AP ', '')}</span>
-                              </>
-                            )}
-                            {!slot && <span style={{ fontSize: '0.65rem' }}>—</span>}
                           </div>
+
+                          {/* Expanded dropdown */}
+                          {isExpanded && (
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                              background: 'white', border: '1.5px solid var(--navy)',
+                              borderRadius: '8px', padding: '0.6rem',
+                              minWidth: '200px', maxWidth: '260px',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                              fontFamily: 'system-ui, sans-serif',
+                            }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--navy)', marginBottom: '0.4rem', borderBottom: '1px solid #e2d9c8', paddingBottom: '0.3rem' }}>
+                                {time} · {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              </div>
+
+                              {/* Matched pairs */}
+                              {paired.length > 0 && (
+                                <div style={{ marginBottom: '0.4rem' }}>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
+                                    ✓ Paired ({paired.length})
+                                  </div>
+                                  {paired.map(s => (
+                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
+                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
+                                      <span style={{ opacity: 0.6 }}> ↔ </span>
+                                      <span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
+                                      <span style={{ display: 'block', fontSize: '0.62rem', color: '#155e3b', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Unmatched students */}
+                              {unmatched.length > 0 && (
+                                <div style={{ marginBottom: '0.4rem' }}>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
+                                    ⏳ Waiting for tutor ({unmatched.length})
+                                  </div>
+                                  {unmatched.map(s => (
+                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#633806', background: '#fef9ee', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
+                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
+                                      <span style={{ display: 'block', fontSize: '0.62rem', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Free tutors */}
+                              {freeTutors.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
+                                    🙋 Tutors available ({freeTutors.length})
+                                  </div>
+                                  {freeTutors.map(a => (
+                                    <div key={a.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#eff9f5', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
+                                      <span style={{ fontWeight: 600 }}>{a.tutor?.last_name}</span>
+                                      <span style={{ display: 'block', fontSize: '0.62rem', opacity: 0.8 }}>{Array.isArray(a.courses) ? a.courses.map(c => c.replace('AP ', '')).join(', ') : a.courses}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.4rem', textAlign: 'right', cursor: 'pointer' }}
+                                onClick={() => setExpandedSlot(null)}>
+                                close ✕
+                              </div>
+                            </div>
+                          )}
                         </td>
                       )
                     })}
@@ -339,7 +426,7 @@ export default function ProctorDashboardPage() {
       {view === 'grades' && (
         <div>
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Grade progression per student per course — earliest to latest session. Grades entered by the student at time of request.
+            Grade progression per student per course — earliest to latest session.
           </p>
           {loading ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
@@ -382,7 +469,6 @@ export default function ProctorDashboardPage() {
                         const prevGrade = prev.length > 0 ? prev[prev.length - 1].grade as number : null
                         const improved = s.grade !== null && prevGrade !== null && s.grade > prevGrade
                         const declined = s.grade !== null && prevGrade !== null && s.grade < prevGrade
-
                         return (
                           <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
                             {si > 0 && s.grade !== null && <span style={{ fontSize: '0.8rem', color: '#d1d5db', alignSelf: 'center', marginBottom: '16px', paddingRight: '3px' }}>→</span>}
@@ -432,11 +518,11 @@ export default function ProctorDashboardPage() {
           </p>
           {loading ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : availability.length === 0 ? (
+          ) : availability.filter(a => !a.is_booked).length === 0 ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No unmatched tutors available right now.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {availability.map((a, i) => (
+              {availability.filter(a => !a.is_booked).map((a, i) => (
                 <div key={i} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
                     {a.tutor ? (a.tutor.first_name[0] + a.tutor.last_name[0]).toUpperCase() : '?'}
