@@ -14,6 +14,53 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const supabase = getSupabase()
 
+    // ── ASSIGN CLASSROOM (called by Proctor from dashboard) ──
+    if (body.trigger === 'classroom') {
+      const { sessionId, classroom } = body
+
+      await supabase
+        .from('sessions')
+        .update({ classroom })
+        .eq('id', sessionId)
+
+      // Fetch session with student and tutor profiles to send emails
+      const { data: session } = await supabase
+        .from('sessions')
+        .select(`course, session_date, session_time,
+          student:profiles!sessions_student_id_fkey(first_name, last_name, email),
+          tutor:profiles!sessions_tutor_id_fkey(first_name, last_name, email)`)
+        .eq('id', sessionId)
+        .single()
+
+      if (session) {
+        const { sendClassroomNotification } = await import('@/lib/email')
+        if (session.student) {
+          await sendClassroomNotification({
+            email: session.student.email,
+            name: `${session.student.first_name} ${session.student.last_name}`,
+            role: 'student',
+            course: session.course,
+            date: session.session_date,
+            time: session.session_time,
+            classroom,
+          })
+        }
+        if (session.tutor) {
+          await sendClassroomNotification({
+            email: session.tutor.email,
+            name: `${session.tutor.first_name} ${session.tutor.last_name}`,
+            role: 'tutor',
+            course: session.course,
+            date: session.session_date,
+            time: session.session_time,
+            classroom,
+          })
+        }
+      }
+
+      return NextResponse.json({ success: true })
+    }
+
     if (body.trigger === 'student') {
       const { sessionId, studentId, course, date, time, duration } = body
 
