@@ -77,8 +77,6 @@ export default function ProctorDashboardPage() {
   const [savingClassroom, setSavingClassroom] = useState(false)
   const [classroomSaved, setClassroomSaved] = useState(false)
   const [search, setSearch] = useState('')
-
-  // Delete data state
   const [showDeletePanel, setShowDeletePanel] = useState(false)
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
   const [selectedMonths, setSelectedMonths] = useState<string[]>([])
@@ -151,13 +149,15 @@ export default function ProctorDashboardPage() {
   async function executeDelete() {
     if (selectedMonths.length === 0) return
     setDeleting(true)
-    for (const month of selectedMonths) {
-      const from = `${selectedYear}-${month}-01`
-      const lastDay = new Date(parseInt(selectedYear), parseInt(month), 0).getDate()
-      const to = `${selectedYear}-${month}-${String(lastDay).padStart(2, '0')}`
-      await supabase.from('sessions').delete().gte('session_date', from).lte('session_date', to)
-      await supabase.from('tutor_availability').delete().gte('available_date', from).lte('available_date', to)
-    }
+    await fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trigger: 'delete_months',
+        year: selectedYear,
+        months: selectedMonths,
+      }),
+    })
     setDeleting(false)
     setDeleteSuccess(true)
     setDeleteStep(0)
@@ -255,7 +255,8 @@ export default function ProctorDashboardPage() {
             onClick={() => { setShowDeletePanel(!showDeletePanel); setDeleteStep(0); setSelectedMonths([]) }}
             style={{
               fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', fontWeight: 700,
-              padding: '0.45rem 0.9rem', background: showDeletePanel ? '#7f1d1d' : '#fef2f2',
+              padding: '0.45rem 0.9rem',
+              background: showDeletePanel ? '#7f1d1d' : '#fef2f2',
               color: showDeletePanel ? 'white' : '#b91c1c',
               border: '1.5px solid #fca5a5', borderRadius: '7px', cursor: 'pointer',
             }}
@@ -269,24 +270,21 @@ export default function ProctorDashboardPage() {
         </div>
       </div>
 
-      {/* Delete success banner */}
       {deleteSuccess && (
         <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '0.75rem 1rem', marginTop: '0.75rem', fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: '#15803d', fontWeight: 600 }}>
           ✓ Data successfully deleted for the selected months.
         </div>
       )}
 
-      {/* Delete Panel */}
       {showDeletePanel && (
         <div style={{ marginTop: '1rem', background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '1.25rem' }}>
           <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#7f1d1d', marginBottom: '0.75rem' }}>
             🗑 Clear Session Data by Month
           </div>
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#b91c1c', marginBottom: '1rem' }}>
-            This permanently deletes all sessions and tutor availability records for the selected months. This cannot be undone.
+            This permanently deletes all sessions, tutor availability, and service hours for the selected months. This cannot be undone.
           </p>
 
-          {/* Year selector */}
           <div style={{ marginBottom: '0.75rem' }}>
             <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 700, color: '#7f1d1d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Year</div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -302,7 +300,6 @@ export default function ProctorDashboardPage() {
             </div>
           </div>
 
-          {/* Month selector */}
           <div style={{ marginBottom: '1rem' }}>
             <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 700, color: '#7f1d1d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Select Months to Delete
@@ -320,7 +317,6 @@ export default function ProctorDashboardPage() {
             </div>
           </div>
 
-          {/* Triple confirmation steps */}
           {selectedMonths.length > 0 && deleteStep === 0 && (
             <button onClick={() => setDeleteStep(1)} style={{
               fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
@@ -337,7 +333,7 @@ export default function ProctorDashboardPage() {
                 ⚠️ Step 1 of 3 — Confirm months
               </div>
               <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#4a5568', marginBottom: '0.75rem' }}>
-                You are about to delete all data for <strong>{selectedMonthLabels} {selectedYear}</strong>. Are these the correct months?
+                You are about to delete all sessions, tutor availability, and service hours for <strong>{selectedMonthLabels} {selectedYear}</strong>. Are these the correct months?
               </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={() => setDeleteStep(2)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
@@ -356,7 +352,7 @@ export default function ProctorDashboardPage() {
                 ⚠️ Step 2 of 3 — Confirm deletion
               </div>
               <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#4a5568', marginBottom: '0.75rem' }}>
-                This will permanently delete all sessions and tutor availability for <strong>{selectedMonthLabels} {selectedYear}</strong>. This action <strong>cannot be undone</strong>. Are you sure you want to delete this data?
+                This will permanently delete all sessions, tutor availability, and service hours for <strong>{selectedMonthLabels} {selectedYear}</strong>. This action <strong>cannot be undone</strong>. Are you sure?
               </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button onClick={() => setDeleteStep(3)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
@@ -378,11 +374,7 @@ export default function ProctorDashboardPage() {
                 Last chance. You are permanently deleting all data for <strong style={{ color: 'white' }}>{selectedMonthLabels} {selectedYear}</strong>. Click Confirm to proceed.
               </p>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={executeDelete}
-                  disabled={deleting}
-                  style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'white', color: '#7f1d1d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
-                >
+                <button onClick={executeDelete} disabled={deleting} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'white', color: '#7f1d1d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
                   {deleting ? 'Deleting…' : '✓ Confirm — Delete permanently'}
                 </button>
                 <button onClick={() => setDeleteStep(0)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'transparent', color: '#fecaca', border: '1.5px solid #fecaca', borderRadius: '6px', cursor: 'pointer' }}>
@@ -394,38 +386,23 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
-      {/* Classroom Setting */}
       <div style={{
         marginTop: '1.25rem', background: 'white', border: '1.5px solid #c9a84c',
         borderRadius: '10px', padding: '1rem 1.25rem',
         display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap',
       }}>
         <div style={{ flex: 1, minWidth: '200px' }}>
-          <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: 'var(--navy)', marginBottom: '0.2rem' }}>
-            📍 Tutoring Classroom
-          </div>
+          <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: 'var(--navy)', marginBottom: '0.2rem' }}>📍 Tutoring Classroom</div>
           <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             This classroom appears in all match confirmation emails. Update it anytime to notify future sessions automatically.
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="e.g. Room 214"
-            value={classroomInput}
+          <input type="text" placeholder="e.g. Room 214" value={classroomInput}
             onChange={e => setClassroomInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') saveClassroom() }}
-            style={{
-              fontFamily: 'system-ui, sans-serif', fontSize: '0.95rem', fontWeight: 700,
-              padding: '0.5rem 0.75rem', border: '1.5px solid #c9a84c', borderRadius: '7px',
-              color: 'var(--navy)', width: '160px', outline: 'none',
-            }}
-          />
-          <button onClick={saveClassroom} disabled={savingClassroom || !classroomInput.trim()} style={{
-            fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
-            padding: '0.5rem 1rem', background: 'var(--navy)', color: 'var(--gold)',
-            border: 'none', borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>
+            style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.95rem', fontWeight: 700, padding: '0.5rem 0.75rem', border: '1.5px solid #c9a84c', borderRadius: '7px', color: 'var(--navy)', width: '160px', outline: 'none' }} />
+          <button onClick={saveClassroom} disabled={savingClassroom || !classroomInput.trim()} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', padding: '0.5rem 1rem', background: 'var(--navy)', color: 'var(--gold)', border: 'none', borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             {savingClassroom ? 'Saving…' : 'Save & Notify'}
           </button>
           {classroomSaved && <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: '#155e3b', fontWeight: 600 }}>✓ Saved — emails sent!</span>}
@@ -433,7 +410,6 @@ export default function ProctorDashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="stat-grid" style={{ marginTop: '1.25rem', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
         <div className="stat-card"><div className="stat-label">Total Sessions</div><div className="stat-value">{stats.total}</div></div>
         <div className="stat-card"><div className="stat-label">Paired</div><div className="stat-value" style={{ color: 'var(--success)' }}>{stats.paired}</div></div>
@@ -443,7 +419,6 @@ export default function ProctorDashboardPage() {
         <div className="stat-card"><div className="stat-label">Total Tutor Min</div><div className="stat-value">{stats.totalMins}</div></div>
       </div>
 
-      {/* View buttons */}
       <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
         {([
           { id: 'calendar', icon: '📅', label: 'Session Calendar', desc: 'Click any slot to see full detail' },
@@ -459,7 +434,6 @@ export default function ProctorDashboardPage() {
         ))}
       </div>
 
-      {/* Calendar */}
       {view === 'calendar' && (
         <div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', padding: '6px 10px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '7px', flexWrap: 'wrap' }}>
@@ -477,13 +451,9 @@ export default function ProctorDashboardPage() {
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '4px' }}>· Click any slot to expand</span>
           </div>
           <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
-            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => { setWeekOffset(w => w - 1); setExpandedSlot(null) }}>← Prev week</button>
-            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>
-              {formatDate(days[0])} – {formatDate(days[4])}
-            </span>
-            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => { setWeekOffset(w => w + 1); setExpandedSlot(null) }}>Next week →</button>
+            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => { setWeekOffset(w => w - 1); setExpandedSlot(null) }}>← Prev week</button>
+            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 600, color: 'var(--navy)' }}>{formatDate(days[0])} – {formatDate(days[4])}</span>
+            <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={() => { setWeekOffset(w => w + 1); setExpandedSlot(null) }}>Next week →</button>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="cal-table">
@@ -515,15 +485,7 @@ export default function ProctorDashboardPage() {
                       const color = paired.length > 0 ? '#0e4a2e' : unmatched.length > 0 ? '#633806' : '#ccc'
                       return (
                         <td key={dateStr} style={{ verticalAlign: 'top', position: 'relative' }}>
-                          <div onClick={() => hasActivity && setExpandedSlot(isExpanded ? null : slotKey)} style={{
-                            padding: '3px 2px', borderRadius: '5px', background: bg, color,
-                            display: 'flex', flexDirection: 'column', alignItems: 'center',
-                            justifyContent: 'center', gap: '1px', minHeight: '44px', width: '100%',
-                            fontSize: '0.7rem', userSelect: 'none',
-                            cursor: hasActivity ? 'pointer' : 'default',
-                            border: isExpanded ? '2px solid var(--navy)' : '2px solid transparent',
-                            boxSizing: 'border-box',
-                          }}>
+                          <div onClick={() => hasActivity && setExpandedSlot(isExpanded ? null : slotKey)} style={{ padding: '3px 2px', borderRadius: '5px', background: bg, color, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px', minHeight: '44px', width: '100%', fontSize: '0.7rem', userSelect: 'none', cursor: hasActivity ? 'pointer' : 'default', border: isExpanded ? '2px solid var(--navy)' : '2px solid transparent', boxSizing: 'border-box' }}>
                             {!hasActivity && <span style={{ fontSize: '0.65rem' }}>—</span>}
                             {hasActivity && (
                               <>
@@ -535,14 +497,7 @@ export default function ProctorDashboardPage() {
                             )}
                           </div>
                           {isExpanded && (
-                            <div style={{
-                              position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                              background: 'white', border: '1.5px solid var(--navy)',
-                              borderRadius: '8px', padding: '0.6rem',
-                              minWidth: '220px', maxWidth: '280px',
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                              fontFamily: 'system-ui, sans-serif',
-                            }}>
+                            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 50, background: 'white', border: '1.5px solid var(--navy)', borderRadius: '8px', padding: '0.6rem', minWidth: '220px', maxWidth: '280px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', fontFamily: 'system-ui, sans-serif' }}>
                               <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--navy)', marginBottom: '0.4rem', borderBottom: '1px solid #e2d9c8', paddingBottom: '0.3rem' }}>
                                 {time} · {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                               </div>
@@ -593,12 +548,10 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
-      {/* Tutor Hours */}
       {view === 'hours' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input type="text" placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
+            <input type="text" placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
@@ -633,12 +586,10 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
-      {/* Student Progress */}
       {view === 'grades' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
+            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
@@ -705,12 +656,10 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
-      {/* Tutors Available */}
       {view === 'available' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
+            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
@@ -736,9 +685,7 @@ export default function ProctorDashboardPage() {
                         {a.subject === 'math' ? '📐 Math' : '🔬 Science'} · {Array.isArray(a.courses) ? a.courses.join(', ') : a.courses}
                       </div>
                     </div>
-                    <div style={{ background: '#eff9f5', border: '0.5px solid #bbf7d0', borderRadius: '999px', padding: '3px 10px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>
-                      Available
-                    </div>
+                    <div style={{ background: '#eff9f5', border: '0.5px solid #bbf7d0', borderRadius: '999px', padding: '3px 10px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>Available</div>
                   </div>
                 ))}
               </div>
