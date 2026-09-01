@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const supabase = getSupabase()
 
-    // ── GET CLASSROOM SETTING ──
     async function getClassroom(): Promise<string> {
       const { data } = await supabase
         .from('settings')
@@ -24,7 +23,6 @@ export async function POST(req: NextRequest) {
       return data?.value || ''
     }
 
-    // ── UPDATE CLASSROOM (called by Proctor from dashboard) ──
     if (body.trigger === 'set_classroom') {
       const { classroom } = body
 
@@ -32,13 +30,15 @@ export async function POST(req: NextRequest) {
         .from('settings')
         .upsert({ key: 'classroom', value: classroom })
 
-      // Send classroom update emails to all currently matched sessions
+      const today = new Date().toISOString().split('T')[0]
+
       const { data: matchedSessions } = await supabase
         .from('sessions')
         .select(`id, course, session_date, session_time,
           student:profiles!sessions_student_id_fkey(first_name, last_name, email),
           tutor:profiles!sessions_tutor_id_fkey(first_name, last_name, email)`)
         .in('status', ['matched', 'completed'])
+        .gte('session_date', today)
 
       if (matchedSessions && classroom) {
         for (const s of matchedSessions) {
@@ -70,7 +70,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // ── GET CLASSROOM (called by dashboard on load) ──
     if (body.trigger === 'get_classroom') {
       const classroom = await getClassroom()
       return NextResponse.json({ classroom })
