@@ -2,14 +2,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-
 export default function ProctorLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -17,7 +15,6 @@ export default function ProctorLoginPage() {
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw signInError
-
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
       if (profile?.role !== 'proctor') {
         await supabase.auth.signOut()
@@ -30,7 +27,6 @@ export default function ProctorLoginPage() {
       setLoading(false)
     }
   }
-
   return (
     <div className="page-narrow">
       <div className="auth-card">
@@ -41,13 +37,11 @@ export default function ProctorLoginPage() {
             Access the Proctor dashboard to view sessions and track grades
           </p>
         </div>
-
         {error && <div className="alert alert-error">{error}</div>}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email</label>
-            <input type="email" required placeholder="proctor@belenwolverines.org"
+            <input type="email" required placeholder="Enter Proctor's email"
               value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div className="form-group">
