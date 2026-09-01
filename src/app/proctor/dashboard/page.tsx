@@ -13,7 +13,6 @@ type SessionRow = {
   subject: string
   status: string
   student_grade: number | null
-  classroom: string | null
   student: { first_name: string; last_name: string; email: string } | null
   tutor: { first_name: string; last_name: string; email: string } | null
 }
@@ -55,8 +54,10 @@ export default function ProctorDashboardPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [availability, setAvailability] = useState<TutorAvailabilityRow[]>([])
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null)
-  const [classroomInputs, setClassroomInputs] = useState<Record<string, string>>({})
-  const [savingClassroom, setSavingClassroom] = useState<string | null>(null)
+  const [classroom, setClassroom] = useState('')
+  const [classroomInput, setClassroomInput] = useState('')
+  const [savingClassroom, setSavingClassroom] = useState(false)
+  const [classroomSaved, setClassroomSaved] = useState(false)
 
   const days = getWeekDays(weekOffset)
 
@@ -64,7 +65,7 @@ export default function ProctorDashboardPage() {
     setLoading(true)
     const { data } = await supabase
       .from('sessions')
-      .select(`id, session_date, session_time, duration, course, subject, status, student_grade, classroom,
+      .select(`id, session_date, session_time, duration, course, subject, status, student_grade,
         student:profiles!sessions_student_id_fkey(first_name, last_name, email),
         tutor:profiles!sessions_tutor_id_fkey(first_name, last_name, email)`)
       .order('session_date', { ascending: true })
@@ -80,6 +81,20 @@ export default function ProctorDashboardPage() {
     setLoading(false)
   }, [])
 
+  // Load classroom setting on mount
+  useEffect(() => {
+    fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger: 'get_classroom' }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        setClassroom(d.classroom || '')
+        setClassroomInput(d.classroom || '')
+      })
+  }, [])
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/proctor/login'); return }
@@ -89,18 +104,18 @@ export default function ProctorDashboardPage() {
     })
   }, [router, loadSessions])
 
-  async function saveClassroom(sessionId: string) {
-    const classroom = classroomInputs[sessionId]?.trim()
-    if (!classroom) return
-    setSavingClassroom(sessionId)
+  async function saveClassroom() {
+    if (!classroomInput.trim()) return
+    setSavingClassroom(true)
     await fetch('/api/match', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trigger: 'classroom', sessionId, classroom }),
+      body: JSON.stringify({ trigger: 'set_classroom', classroom: classroomInput.trim() }),
     })
-    setSavingClassroom(null)
-    setClassroomInputs(prev => { const n = { ...prev }; delete n[sessionId]; return n })
-    loadSessions()
+    setClassroom(classroomInput.trim())
+    setSavingClassroom(false)
+    setClassroomSaved(true)
+    setTimeout(() => setClassroomSaved(false), 3000)
   }
 
   function getSlots(date: string, time: string): SessionRow[] {
@@ -178,7 +193,78 @@ export default function ProctorDashboardPage() {
         </button>
       </div>
 
-      <div className="stat-grid" style={{ marginTop: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+      {/* ── CLASSROOM SETTING ── */}
+      <div style={{
+        marginTop: '1.25rem',
+        background: 'white',
+        border: '1.5px solid #c9a84c',
+        borderRadius: '10px',
+        padding: '1rem 1.25rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: 'var(--navy)', marginBottom: '0.2rem' }}>
+            📍 Tutoring Classroom
+          </div>
+          <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            This classroom will appear in all match confirmation emails sent to students and tutors. Update it anytime to notify everyone automatically.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="e.g. Room 214"
+            value={classroomInput}
+            onChange={e => setClassroomInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') saveClassroom() }}
+            style={{
+              fontFamily: 'system-ui, sans-serif',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              padding: '0.5rem 0.75rem',
+              border: '1.5px solid #c9a84c',
+              borderRadius: '7px',
+              color: 'var(--navy)',
+              width: '160px',
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={saveClassroom}
+            disabled={savingClassroom || !classroomInput.trim()}
+            style={{
+              fontFamily: 'system-ui, sans-serif',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              padding: '0.5rem 1rem',
+              background: 'var(--navy)',
+              color: 'var(--gold)',
+              border: 'none',
+              borderRadius: '7px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {savingClassroom ? 'Saving…' : 'Save & Notify'}
+          </button>
+          {classroomSaved && (
+            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: '#155e3b', fontWeight: 600 }}>
+              ✓ Saved — emails sent!
+            </span>
+          )}
+          {classroom && !classroomSaved && (
+            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Current: <strong style={{ color: 'var(--navy)' }}>{classroom}</strong>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="stat-grid" style={{ marginTop: '1.25rem', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
         <div className="stat-card"><div className="stat-label">Total Sessions</div><div className="stat-value">{stats.total}</div></div>
         <div className="stat-card"><div className="stat-label">Paired</div><div className="stat-value" style={{ color: 'var(--success)' }}>{stats.paired}</div></div>
         <div className="stat-card"><div className="stat-label">Unpaired</div><div className="stat-value" style={{ color: '#92400e' }}>{stats.unpaired}</div></div>
@@ -187,6 +273,7 @@ export default function ProctorDashboardPage() {
         <div className="stat-card"><div className="stat-label">Total Tutor Min</div><div className="stat-value">{stats.totalMins}</div></div>
       </div>
 
+      {/* Four view buttons */}
       <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
         {([
           { id: 'calendar', icon: '📅', label: 'Session Calendar', desc: 'Click any slot to see full detail' },
@@ -304,56 +391,11 @@ export default function ProctorDashboardPage() {
                                     ✓ Paired ({paired.length})
                                   </div>
                                   {paired.map(s => (
-                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '5px 6px', marginBottom: '6px' }}>
-                                      <div style={{ fontWeight: 600 }}>
-                                        {s.student?.last_name} <span style={{ opacity: 0.6 }}>↔</span> {s.tutor?.last_name}
-                                      </div>
-                                      <div style={{ fontSize: '0.62rem', color: '#155e3b', opacity: 0.8, marginBottom: '4px' }}>{s.course.replace('AP ', '')}</div>
-
-                                      {/* Classroom field */}
-                                      {s.classroom ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
-                                          <span style={{ fontSize: '0.65rem', background: '#fef9ee', border: '1px solid #c9a84c', borderRadius: '4px', padding: '2px 6px', color: '#0a1628', fontWeight: 700 }}>
-                                            📍 {s.classroom}
-                                          </span>
-                                          <span
-                                            style={{ fontSize: '0.6rem', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}
-                                            onClick={() => setClassroomInputs(prev => ({ ...prev, [s.id]: s.classroom || '' }))}
-                                          >
-                                            change
-                                          </span>
-                                        </div>
-                                      ) : null}
-
-                                      {/* Classroom input */}
-                                      {(!s.classroom || classroomInputs[s.id] !== undefined) && (
-                                        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-                                          <input
-                                            type="text"
-                                            placeholder="Room / classroom"
-                                            value={classroomInputs[s.id] ?? ''}
-                                            onChange={e => setClassroomInputs(prev => ({ ...prev, [s.id]: e.target.value }))}
-                                            onKeyDown={e => { if (e.key === 'Enter') saveClassroom(s.id) }}
-                                            style={{
-                                              flex: 1, fontSize: '0.7rem', padding: '3px 6px',
-                                              border: '1px solid #c9a84c', borderRadius: '4px',
-                                              fontFamily: 'system-ui, sans-serif', outline: 'none',
-                                            }}
-                                          />
-                                          <button
-                                            onClick={() => saveClassroom(s.id)}
-                                            disabled={savingClassroom === s.id}
-                                            style={{
-                                              fontSize: '0.65rem', padding: '3px 8px',
-                                              background: 'var(--navy)', color: 'var(--gold)',
-                                              border: 'none', borderRadius: '4px', cursor: 'pointer',
-                                              fontFamily: 'system-ui, sans-serif', fontWeight: 700,
-                                            }}
-                                          >
-                                            {savingClassroom === s.id ? '…' : 'Save'}
-                                          </button>
-                                        </div>
-                                      )}
+                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '4px 6px', marginBottom: '3px' }}>
+                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
+                                      <span style={{ opacity: 0.6 }}> ↔ </span>
+                                      <span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
+                                      <span style={{ display: 'block', fontSize: '0.62rem', color: '#155e3b', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
                                     </div>
                                   ))}
                                 </div>
