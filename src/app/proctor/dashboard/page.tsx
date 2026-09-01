@@ -194,31 +194,6 @@ export default function ProctorDashboardPage() {
   }
   const btnActive: React.CSSProperties = { ...btnBase, borderColor: 'var(--navy)', background: 'var(--navy)' }
 
-  const SearchBar = () => (
-    <div style={{ marginBottom: '1rem', position: 'relative' }}>
-      <input
-        type="text"
-        placeholder="Search by name, email or course…"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{
-          width: '100%', boxSizing: 'border-box',
-          fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
-          padding: '0.6rem 0.75rem 0.6rem 2.25rem',
-          border: '1.5px solid #e2d9c8', borderRadius: '8px',
-          outline: 'none', color: 'var(--navy)',
-        }}
-      />
-      <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
-      {search && (
-        <span
-          onClick={() => setSearch('')}
-          style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}
-        >✕</span>
-      )}
-    </div>
-  )
-
   return (
     <div className="page" style={{ maxWidth: '1100px' }}>
       <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
@@ -456,7 +431,23 @@ export default function ProctorDashboardPage() {
       {/* Tutor Hours */}
       {view === 'hours' && (
         <div>
-          <SearchBar />
+          <div style={{ marginBottom: '1rem', position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
+                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
+                border: '1.5px solid #e2d9c8', borderRadius: '8px',
+                outline: 'none', color: 'var(--navy)',
+              }}
+            />
+            <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
+            {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
+          </div>
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Total minutes each Volunteer Tutor has committed to matched sessions this term.
           </p>
@@ -497,7 +488,23 @@ export default function ProctorDashboardPage() {
       {/* Student Progress */}
       {view === 'grades' && (
         <div>
-          <SearchBar />
+          <div style={{ marginBottom: '1rem', position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search by name, email or course…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
+                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
+                border: '1.5px solid #e2d9c8', borderRadius: '8px',
+                outline: 'none', color: 'var(--navy)',
+              }}
+            />
+            <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
+            {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
+          </div>
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Grade progression per student per course — earliest to latest session.
           </p>
@@ -586,7 +593,23 @@ export default function ProctorDashboardPage() {
       {/* Tutors Available */}
       {view === 'available' && (
         <div>
-          <SearchBar />
+          <div style={{ marginBottom: '1rem', position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="Search by name, email or course…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
+                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
+                border: '1.5px solid #e2d9c8', borderRadius: '8px',
+                outline: 'none', color: 'var(--navy)',
+              }}
+            />
+            <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
+            {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
+          </div>
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Volunteer Tutors who have set availability but have not yet been matched with a student.
           </p>
