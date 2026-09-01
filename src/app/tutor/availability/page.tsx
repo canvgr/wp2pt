@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { MATH_COURSES, SCIENCE_COURSES, TIME_SLOTS, DURATION, getWeekDays, formatDate, formatDateISO } from '@/lib/courses'
@@ -134,13 +134,16 @@ export default function TutorAvailabilityPage() {
     return (
       <div className="page-narrow" style={{ textAlign: 'center', paddingTop: '4rem' }}>
         <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✅</div>
-        <h2 style={{ color: '#155e3b' }}>Availability Set!</h2>
-        <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-          You've registered {setSlots.size} time slot{setSlots.size !== 1 ? 's' : ''}. You'll receive a confirmation email when matched with a student.
+        <h2 style={{ color: '#155e3b' }}>Availability Registered!</h2>
+        <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+          You have registered your availability for {setSlots.size} time slot{setSlots.size !== 1 ? 's' : ''}.
+        </p>
+        <p style={{ fontFamily: 'system-ui, sans-serif', color: '#155e3b', lineHeight: 1.7, fontWeight: 600, fontSize: '0.95rem' }}>
+          You will be sent a confirmation email when you are matched with a student.
         </p>
         <button className="btn-primary" style={{ marginTop: '1.5rem', background: '#155e3b' }}
           onClick={() => { setSuccess(false); setStep(1); setSetSlots(new Set()) }}>
-          Update Availability
+          Reschedule Availability
         </button>
         <button className="btn-secondary" style={{ marginTop: '0.75rem', display: 'block', width: '100%' }} onClick={async () => {
           await supabase.auth.signOut(); router.push('/')
@@ -272,9 +275,11 @@ export default function TutorAvailabilityPage() {
                         const isSet = setSlots.has(key)
                         const info = demandInfo(dateStr, time)
                         const level = demandLevel(dateStr, time)
-                        let cellStyle: React.CSSProperties = { cursor: 'pointer', padding: '4px 2px', minHeight: '44px', display: 'flex',
+                        let cellStyle: React.CSSProperties = {
+                          cursor: 'pointer', padding: '4px 2px', minHeight: '44px', display: 'flex',
                           flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px',
-                          borderRadius: '6px', fontSize: '0.72rem', transition: 'all 0.12s', width: '100%', textAlign: 'center' }
+                          borderRadius: '6px', fontSize: '0.72rem', transition: 'all 0.12s', width: '100%', textAlign: 'center'
+                        }
                         if (isSet) cellStyle = { ...cellStyle, background: '#155e3b', color: 'white' }
                         else cellStyle = { ...cellStyle, ...demandStyle(level) }
                         return (
