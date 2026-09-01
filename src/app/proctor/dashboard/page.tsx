@@ -58,6 +58,7 @@ export default function ProctorDashboardPage() {
   const [classroomInput, setClassroomInput] = useState('')
   const [savingClassroom, setSavingClassroom] = useState(false)
   const [classroomSaved, setClassroomSaved] = useState(false)
+  const [search, setSearch] = useState('')
 
   const days = getWeekDays(weekOffset)
 
@@ -81,7 +82,6 @@ export default function ProctorDashboardPage() {
     setLoading(false)
   }, [])
 
-  // Load classroom setting on mount
   useEffect(() => {
     fetch('/api/match', {
       method: 'POST',
@@ -172,11 +172,52 @@ export default function ProctorDashboardPage() {
     totalMins: sessions.filter(s => s.tutor).reduce((sum, s) => sum + s.duration, 0),
   }
 
+  const q = search.toLowerCase().trim()
+
+  const filteredTutorStats = tutorStats.filter(t =>
+    !q || t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q)
+  )
+
+  const filteredGradeHistory = gradeHistory.filter(e =>
+    !q || e.studentName.toLowerCase().includes(q) || e.studentEmail.toLowerCase().includes(q) || e.course.toLowerCase().includes(q)
+  )
+
+  const filteredAvailability = availability.filter(a => !a.is_booked).filter(a =>
+    !q || (a.tutor && (`${a.tutor.first_name} ${a.tutor.last_name}`).toLowerCase().includes(q)) ||
+    (a.tutor && a.tutor.email.toLowerCase().includes(q)) ||
+    (Array.isArray(a.courses) && a.courses.join(' ').toLowerCase().includes(q))
+  )
+
   const btnBase: React.CSSProperties = {
     border: '1.5px solid #e2d9c8', borderRadius: '10px', padding: '14px 10px',
     background: 'white', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', flex: 1,
   }
   const btnActive: React.CSSProperties = { ...btnBase, borderColor: 'var(--navy)', background: 'var(--navy)' }
+
+  const SearchBar = () => (
+    <div style={{ marginBottom: '1rem', position: 'relative' }}>
+      <input
+        type="text"
+        placeholder="Search by name, email or course…"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
+          padding: '0.6rem 0.75rem 0.6rem 2.25rem',
+          border: '1.5px solid #e2d9c8', borderRadius: '8px',
+          outline: 'none', color: 'var(--navy)',
+        }}
+      />
+      <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
+      {search && (
+        <span
+          onClick={() => setSearch('')}
+          style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}
+        >✕</span>
+      )}
+    </div>
+  )
 
   return (
     <div className="page" style={{ maxWidth: '1100px' }}>
@@ -193,24 +234,18 @@ export default function ProctorDashboardPage() {
         </button>
       </div>
 
-      {/* ── CLASSROOM SETTING ── */}
+      {/* Classroom Setting */}
       <div style={{
-        marginTop: '1.25rem',
-        background: 'white',
-        border: '1.5px solid #c9a84c',
-        borderRadius: '10px',
-        padding: '1rem 1.25rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        flexWrap: 'wrap',
+        marginTop: '1.25rem', background: 'white', border: '1.5px solid #c9a84c',
+        borderRadius: '10px', padding: '1rem 1.25rem',
+        display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap',
       }}>
         <div style={{ flex: 1, minWidth: '200px' }}>
           <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', color: 'var(--navy)', marginBottom: '0.2rem' }}>
             📍 Tutoring Classroom
           </div>
           <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            This classroom will appear in all match confirmation emails sent to students and tutors. Update it anytime to notify everyone automatically.
+            This classroom appears in all match confirmation emails. Update it anytime to notify future sessions automatically.
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -221,31 +256,18 @@ export default function ProctorDashboardPage() {
             onChange={e => setClassroomInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') saveClassroom() }}
             style={{
-              fontFamily: 'system-ui, sans-serif',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              padding: '0.5rem 0.75rem',
-              border: '1.5px solid #c9a84c',
-              borderRadius: '7px',
-              color: 'var(--navy)',
-              width: '160px',
-              outline: 'none',
+              fontFamily: 'system-ui, sans-serif', fontSize: '0.95rem', fontWeight: 700,
+              padding: '0.5rem 0.75rem', border: '1.5px solid #c9a84c', borderRadius: '7px',
+              color: 'var(--navy)', width: '160px', outline: 'none',
             }}
           />
           <button
             onClick={saveClassroom}
             disabled={savingClassroom || !classroomInput.trim()}
             style={{
-              fontFamily: 'system-ui, sans-serif',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              padding: '0.5rem 1rem',
-              background: 'var(--navy)',
-              color: 'var(--gold)',
-              border: 'none',
-              borderRadius: '7px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
+              fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
+              padding: '0.5rem 1rem', background: 'var(--navy)', color: 'var(--gold)',
+              border: 'none', borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
             {savingClassroom ? 'Saving…' : 'Save & Notify'}
@@ -273,7 +295,7 @@ export default function ProctorDashboardPage() {
         <div className="stat-card"><div className="stat-label">Total Tutor Min</div><div className="stat-value">{stats.totalMins}</div></div>
       </div>
 
-      {/* Four view buttons */}
+      {/* View buttons */}
       <div style={{ display: 'flex', gap: '1rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
         {([
           { id: 'calendar', icon: '📅', label: 'Session Calendar', desc: 'Click any slot to see full detail' },
@@ -281,7 +303,7 @@ export default function ProctorDashboardPage() {
           { id: 'grades', icon: '📈', label: 'Student Progress', desc: 'Grade improvement over sessions' },
           { id: 'available', icon: '🙋', label: 'Tutors Available', desc: 'Unmatched tutors ready to help' },
         ] as const).map(v => (
-          <button key={v.id} style={view === v.id ? btnActive : btnBase} onClick={() => setView(v.id)}>
+          <button key={v.id} style={view === v.id ? btnActive : btnBase} onClick={() => { setView(v.id); setSearch('') }}>
             <div style={{ fontSize: '1.5rem', marginBottom: '6px' }}>{v.icon}</div>
             <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: view === v.id ? 'var(--gold)' : 'var(--navy)', marginBottom: '3px' }}>{v.label}</div>
             <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: view === v.id ? '#e0cc99' : 'var(--text-muted)', lineHeight: 1.4 }}>{v.desc}</div>
@@ -289,6 +311,7 @@ export default function ProctorDashboardPage() {
         ))}
       </div>
 
+      {/* Calendar */}
       {view === 'calendar' && (
         <div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '10px', padding: '6px 10px', background: 'white', border: '0.5px solid var(--border)', borderRadius: '7px', flexWrap: 'wrap' }}>
@@ -305,7 +328,6 @@ export default function ProctorDashboardPage() {
             ))}
             <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '4px' }}>· Click any slot to expand</span>
           </div>
-
           <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
             <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
               onClick={() => { setWeekOffset(w => w - 1); setExpandedSlot(null) }}>← Prev week</button>
@@ -315,7 +337,6 @@ export default function ProctorDashboardPage() {
             <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
               onClick={() => { setWeekOffset(w => w + 1); setExpandedSlot(null) }}>Next week →</button>
           </div>
-
           <div style={{ overflowX: 'auto' }}>
             <table className="cal-table">
               <thead>
@@ -346,7 +367,6 @@ export default function ProctorDashboardPage() {
                       const hasActivity = slotSessions.length > 0 || freeTutors.length > 0
                       const bg = paired.length > 0 ? '#e8f5f0' : unmatched.length > 0 ? '#fef9ee' : '#f5f3ee'
                       const color = paired.length > 0 ? '#0e4a2e' : unmatched.length > 0 ? '#633806' : '#ccc'
-
                       return (
                         <td key={dateStr} style={{ verticalAlign: 'top', position: 'relative' }}>
                           <div
@@ -371,7 +391,6 @@ export default function ProctorDashboardPage() {
                               </>
                             )}
                           </div>
-
                           {isExpanded && (
                             <div style={{
                               position: 'absolute', top: '100%', left: 0, zIndex: 50,
@@ -384,12 +403,9 @@ export default function ProctorDashboardPage() {
                               <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--navy)', marginBottom: '0.4rem', borderBottom: '1px solid #e2d9c8', paddingBottom: '0.3rem' }}>
                                 {time} · {new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                               </div>
-
                               {paired.length > 0 && (
                                 <div style={{ marginBottom: '0.4rem' }}>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-                                    ✓ Paired ({paired.length})
-                                  </div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>✓ Paired ({paired.length})</div>
                                   {paired.map(s => (
                                     <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '4px 6px', marginBottom: '3px' }}>
                                       <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
@@ -400,12 +416,9 @@ export default function ProctorDashboardPage() {
                                   ))}
                                 </div>
                               )}
-
                               {unmatched.length > 0 && (
                                 <div style={{ marginBottom: '0.4rem' }}>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-                                    ⏳ Waiting for tutor ({unmatched.length})
-                                  </div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>⏳ Waiting for tutor ({unmatched.length})</div>
                                   {unmatched.map(s => (
                                     <div key={s.id} style={{ fontSize: '0.72rem', color: '#633806', background: '#fef9ee', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
                                       <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
@@ -414,12 +427,9 @@ export default function ProctorDashboardPage() {
                                   ))}
                                 </div>
                               )}
-
                               {freeTutors.length > 0 && (
                                 <div>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-                                    🙋 Tutors available ({freeTutors.length})
-                                  </div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>🙋 Tutors available ({freeTutors.length})</div>
                                   {freeTutors.map(a => (
                                     <div key={a.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#eff9f5', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
                                       <span style={{ fontWeight: 600 }}>{a.tutor?.last_name}</span>
@@ -428,11 +438,8 @@ export default function ProctorDashboardPage() {
                                   ))}
                                 </div>
                               )}
-
                               <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.4rem', textAlign: 'right', cursor: 'pointer' }}
-                                onClick={() => setExpandedSlot(null)}>
-                                close ✕
-                              </div>
+                                onClick={() => setExpandedSlot(null)}>close ✕</div>
                             </div>
                           )}
                         </td>
@@ -446,18 +453,20 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
+      {/* Tutor Hours */}
       {view === 'hours' && (
         <div>
+          <SearchBar />
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Total minutes each Volunteer Tutor has committed to matched sessions this term.
           </p>
           {loading ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : tutorStats.length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No tutor data yet.</p>
+          ) : filteredTutorStats.length === 0 ? (
+            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No tutor data yet.'}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {tutorStats.map((t, i) => (
+              {filteredTutorStats.map((t, i) => (
                 <div key={t.id} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}>{i + 1}</span>
                   <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}>
@@ -485,18 +494,20 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
+      {/* Student Progress */}
       {view === 'grades' && (
         <div>
+          <SearchBar />
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Grade progression per student per course — earliest to latest session.
           </p>
           {loading ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : gradeHistory.length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No grade data yet.</p>
+          ) : filteredGradeHistory.length === 0 ? (
+            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No students found for "${search}"` : 'No grade data yet.'}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {gradeHistory.map((entry, i) => {
+              {filteredGradeHistory.map((entry, i) => {
                 const change = gradeChange(entry)
                 const graded = entry.sessions.filter(s => s.grade !== null)
                 return (
@@ -572,18 +583,20 @@ export default function ProctorDashboardPage() {
         </div>
       )}
 
+      {/* Tutors Available */}
       {view === 'available' && (
         <div>
+          <SearchBar />
           <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
             Volunteer Tutors who have set availability but have not yet been matched with a student.
           </p>
           {loading ? (
             <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : availability.filter(a => !a.is_booked).length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No unmatched tutors available right now.</p>
+          ) : filteredAvailability.length === 0 ? (
+            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No unmatched tutors available right now.'}</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {availability.filter(a => !a.is_booked).map((a, i) => (
+              {filteredAvailability.map((a, i) => (
                 <div key={i} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
                     {a.tutor ? (a.tutor.first_name[0] + a.tutor.last_name[0]).toUpperCase() : '?'}
