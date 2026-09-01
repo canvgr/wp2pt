@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendStudentConfirmation, sendTutorConfirmation } from '@/lib/email'
+import { sendStudentConfirmation, sendTutorConfirmation, sendClassroomNotification } from '@/lib/email'
 
 function getSupabase() {
   return createClient(
@@ -14,51 +14,66 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const supabase = getSupabase()
 
-    // ── ASSIGN CLASSROOM (called by Proctor from dashboard) ──
-    if (body.trigger === 'classroom') {
-      const { sessionId, classroom } = body
+    // ── GET CLASSROOM SETTING ──
+    async function getClassroom(): Promise<string> {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'classroom')
+        .single()
+      return data?.value || ''
+    }
+
+    // ── UPDATE CLASSROOM (called by Proctor from dashboard) ──
+    if (body.trigger === 'set_classroom') {
+      const { classroom } = body
 
       await supabase
-        .from('sessions')
-        .update({ classroom })
-        .eq('id', sessionId)
+        .from('settings')
+        .upsert({ key: 'classroom', value: classroom })
 
-      // Fetch session with student and tutor profiles to send emails
-      const { data: session } = await supabase
+      // Send classroom update emails to all currently matched sessions
+      const { data: matchedSessions } = await supabase
         .from('sessions')
-        .select(`course, session_date, session_time,
+        .select(`id, course, session_date, session_time,
           student:profiles!sessions_student_id_fkey(first_name, last_name, email),
           tutor:profiles!sessions_tutor_id_fkey(first_name, last_name, email)`)
-        .eq('id', sessionId)
-        .single()
+        .in('status', ['matched', 'completed'])
 
-      if (session) {
-        const { sendClassroomNotification } = await import('@/lib/email')
-        if (session.student) {
-          await sendClassroomNotification({
-            email: session.student.email,
-            name: `${session.student.first_name} ${session.student.last_name}`,
-            role: 'student',
-            course: session.course,
-            date: session.session_date,
-            time: session.session_time,
-            classroom,
-          })
-        }
-        if (session.tutor) {
-          await sendClassroomNotification({
-            email: session.tutor.email,
-            name: `${session.tutor.first_name} ${session.tutor.last_name}`,
-            role: 'tutor',
-            course: session.course,
-            date: session.session_date,
-            time: session.session_time,
-            classroom,
-          })
+      if (matchedSessions && classroom) {
+        for (const s of matchedSessions) {
+          if (s.student) {
+            await sendClassroomNotification({
+              email: s.student.email,
+              name: `${s.student.first_name} ${s.student.last_name}`,
+              role: 'student',
+              course: s.course,
+              date: s.session_date,
+              time: s.session_time,
+              classroom,
+            })
+          }
+          if (s.tutor) {
+            await sendClassroomNotification({
+              email: s.tutor.email,
+              name: `${s.tutor.first_name} ${s.tutor.last_name}`,
+              role: 'tutor',
+              course: s.course,
+              date: s.session_date,
+              time: s.session_time,
+              classroom,
+            })
+          }
         }
       }
 
       return NextResponse.json({ success: true })
+    }
+
+    // ── GET CLASSROOM (called by dashboard on load) ──
+    if (body.trigger === 'get_classroom') {
+      const classroom = await getClassroom()
+      return NextResponse.json({ classroom })
     }
 
     if (body.trigger === 'student') {
@@ -82,6 +97,7 @@ export async function POST(req: NextRequest) {
 
       const slot = slots[0]
       const tutor = slot.tutor
+      const classroom = await getClassroom()
 
       await supabase
         .from('tutor_availability')
@@ -104,7 +120,7 @@ export async function POST(req: NextRequest) {
           studentEmail: studentProfile.email,
           studentName: `${studentProfile.first_name} ${studentProfile.last_name}`,
           tutorName: `${tutor.first_name} ${tutor.last_name}`,
-          course, date, time, duration,
+          course, date, time, duration, classroom,
         })
       }
 
@@ -112,7 +128,7 @@ export async function POST(req: NextRequest) {
         tutorEmail: tutor.email,
         tutorName: `${tutor.first_name} ${tutor.last_name}`,
         studentName: studentProfile ? `${studentProfile.first_name} ${studentProfile.last_name}` : 'A student',
-        course, date, time, duration,
+        course, date, time, duration, classroom,
       })
 
       return NextResponse.json({ matched: true, tutorName: `${tutor.first_name} ${tutor.last_name}` })
@@ -135,6 +151,7 @@ export async function POST(req: NextRequest) {
 
       const session = pendingSessions[0]
       const student = session.student
+      const classroom = await getClassroom()
 
       await supabase
         .from('tutor_availability')
@@ -157,14 +174,14 @@ export async function POST(req: NextRequest) {
           studentEmail: student.email,
           studentName: `${student.first_name} ${student.last_name}`,
           tutorName: `${tutorProfile.first_name} ${tutorProfile.last_name}`,
-          course: session.course, date, time, duration,
+          course: session.course, date, time, duration, classroom,
         })
 
         await sendTutorConfirmation({
           tutorEmail: tutorProfile.email,
           tutorName: `${tutorProfile.first_name} ${tutorProfile.last_name}`,
           studentName: `${student.first_name} ${student.last_name}`,
-          course: session.course, date, time, duration,
+          course: session.course, date, time, duration, classroom,
         })
       }
 
