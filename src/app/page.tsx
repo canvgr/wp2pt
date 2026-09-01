@@ -10,7 +10,6 @@ export default function LandingPage() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Barlow', sans-serif; }
         .wp2pt-wrap { min-height: 100vh; background: #fff; overflow-x: hidden; }
-
         .main-header {
           background: #0a1628;
           padding: 0 3rem;
@@ -41,6 +40,7 @@ export default function LandingPage() {
           text-transform: uppercase;
         }
         .header-right { display: flex; align-items: center; gap: 2rem; }
+        .header-nav { display: flex; gap: 1.75rem; }
         .header-nav a {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
@@ -51,7 +51,6 @@ export default function LandingPage() {
           text-decoration: none;
           transition: color 0.15s;
         }
-        .header-nav { display: flex; gap: 1.75rem; }
         .header-nav a:hover { color: #c9a84c; }
         .header-signin {
           font-family: 'Barlow Condensed', sans-serif;
@@ -67,8 +66,6 @@ export default function LandingPage() {
           transition: opacity 0.15s;
         }
         .header-signin:hover { opacity: 0.85; }
-
-        /* HERO — compact, everything above the fold */
         .hero {
           position: relative;
           display: flex;
@@ -106,7 +103,6 @@ export default function LandingPage() {
           align-items: center;
           max-width: 680px;
           width: 100%;
-          gap: 0;
         }
         .gold-rule { width: 48px; height: 2px; background: #c9a84c; }
         .hero-amdg {
@@ -140,8 +136,6 @@ export default function LandingPage() {
           max-width: 420px;
           margin: 0.9rem auto 1.75rem;
         }
-
-        /* Role grid — symmetric 3-column */
         .role-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -191,8 +185,6 @@ export default function LandingPage() {
         }
         .role-btn-register:hover { background: #f3f4f6; }
         .role-btn-spacer { padding: 0.55rem; background: #fff; }
-
-        /* STATS */
         .stats-bar { background: #c9a84c; padding: 2.25rem 3rem; }
         .stats-grid {
           max-width: 860px;
@@ -220,8 +212,6 @@ export default function LandingPage() {
           margin-top: 0.25rem;
           opacity: 0.7;
         }
-
-        /* QUOTE */
         .quote-section {
           background: #f3f4f6;
           padding: 5rem 3rem;
@@ -255,8 +245,6 @@ export default function LandingPage() {
           color: #6b7280;
           margin-top: 1.5rem;
         }
-
-        /* FOOTER */
         .footer { background: #0a1628; border-top: 4px solid #c9a84c; padding: 2rem 3rem; }
         .footer-inner {
           max-width: 960px;
@@ -299,7 +287,6 @@ export default function LandingPage() {
           transition: color 0.15s;
         }
         .footer-link:hover { color: #c9a84c; }
-
         @media (max-width: 768px) {
           .main-header { padding: 0 1.25rem; }
           .header-nav { display: none; }
@@ -316,7 +303,7 @@ export default function LandingPage() {
 
       <div className="wp2pt-wrap">
 
-        {/* SINGLE HEADER */}
+        {/* ONE HEADER ONLY */}
         <header className="main-header">
           <div className="header-left">
             <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit Seal" width={48} height={48} style={{ objectFit: 'contain' }} />
@@ -335,10 +322,8 @@ export default function LandingPage() {
           </div>
         </header>
 
-        {/* HERO — compact, role buttons immediately visible */}
+        {/* HERO */}
         <section className="hero">
-
-          {/* Building watermark */}
           <svg className="hero-watermark" viewBox="0 0 1000 580" aria-hidden="true">
             <rect x="200" y="240" width="600" height="320" fill="none" stroke="#0a1628" strokeWidth="2"/>
             <polyline points="160,240 500,110 840,240" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
@@ -362,29 +347,21 @@ export default function LandingPage() {
             <ellipse cx="878" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
             <ellipse cx="922" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
           </svg>
-
-          {/* B mark watermark */}
           <div className="hero-b-watermark" aria-hidden="true">
             <Image src="/clipart765116.png" alt="" width={480} height={530} style={{ objectFit: 'contain' }} />
           </div>
-
           <div className="hero-content">
             <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit" width={90} height={90} style={{ objectFit: 'contain', marginBottom: '0.75rem' }} />
-
             <div className="gold-rule" />
             <div className="hero-amdg">Ad Majorem Dei Gloriam</div>
-
             <h1 className="hero-title">
               Wolverines<br />
               <span className="hero-title-gold">Peer-to-Peer</span><br />
               Tutoring
             </h1>
-
             <p className="hero-sub">
               A student-built platform connecting Belen Jesuit students with volunteer tutors — automatically matched, confirmed by email, and tracked by the Proctor.
             </p>
-
-            {/* Symmetric 3-column role grid */}
             <div className="role-grid">
               <div className="role-cell">
                 <Link href="/student/login" className="role-btn-main">I'm a Student</Link>
@@ -438,9 +415,7 @@ export default function LandingPage() {
           </div>
           <div className="quote-inner">
             <div className="gold-rule" style={{ margin: '0 auto 1.75rem' }} />
-            <blockquote className="quote-text">
-              "Built by a Wolverine, for Wolverines."
-            </blockquote>
+            <blockquote className="quote-text">"Built by a Wolverine, for Wolverines."</blockquote>
             <div className="quote-attr">Diego A. Núñez &nbsp;·&nbsp; Class of 2027</div>
             <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'center' }}>
               <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Seal" width={56} height={56} style={{ objectFit: 'contain', opacity: 0.45 }} />
