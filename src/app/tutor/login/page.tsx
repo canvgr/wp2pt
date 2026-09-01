@@ -3,14 +3,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-
 export default function TutorLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -25,7 +23,6 @@ export default function TutorLoginPage() {
       setLoading(false)
     }
   }
-
   return (
     <div className="page-narrow">
       <div className="auth-card">
@@ -36,13 +33,11 @@ export default function TutorLoginPage() {
             Use your Belen Jesuit school email
           </p>
         </div>
-
         {error && <div className="alert alert-error">{error}</div>}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>School Email</label>
-            <input type="email" required placeholder="dnunez@belenwolverines.org"
+            <input type="email" required placeholder="Your school email"
               value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div className="form-group">
@@ -54,7 +49,6 @@ export default function TutorLoginPage() {
             {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
-
         <div className="auth-switch">
           Don't have an account? <Link href="/tutor/register">Register</Link>
         </div>
