@@ -6,120 +6,71 @@ export default function LandingPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,400;0,500;1,400&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         body { font-family: 'Barlow', sans-serif; }
-
         .wp2pt-wrap { min-height: 100vh; background: #fff; overflow-x: hidden; }
 
-        /* ── TOP NAV BAR ── */
-        .top-bar {
-          background: #0a1628;
-          height: 52px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 3rem;
-        }
-        .top-bar-brand {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: 1.05rem;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: #c9a84c;
-        }
-        .top-bar-brand span {
-          font-weight: 400;
-          font-size: 0.7rem;
-          color: #94a3b8;
-          display: block;
-          letter-spacing: 0.1em;
-          margin-top: 1px;
-        }
-        .top-bar-nav {
-          display: flex;
-          gap: 2rem;
-          align-items: center;
-        }
-        .top-bar-nav a {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.75rem;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #e2e8f0;
-          text-decoration: none;
-          transition: color 0.15s;
-        }
-        .top-bar-nav a:hover { color: #c9a84c; }
-
-        /* ── HEADER ── */
         .main-header {
-          background: #fff;
-          border-bottom: 1px solid #e2ddd4;
+          background: #0a1628;
           padding: 0 3rem;
-          height: 80px;
+          height: 68px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           position: sticky;
           top: 0;
           z-index: 100;
+          border-bottom: 3px solid #c9a84c;
         }
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
         .header-school-name {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
           font-size: 1rem;
-          color: #0a1628;
+          color: #fff;
           letter-spacing: 0.06em;
           text-transform: uppercase;
           line-height: 1.1;
         }
         .header-school-sub {
           font-family: 'Barlow', sans-serif;
-          font-size: 0.65rem;
-          color: #6b7280;
+          font-size: 0.62rem;
+          color: #94a3b8;
           letter-spacing: 0.06em;
           text-transform: uppercase;
         }
-        .header-right {
-          display: flex;
-          align-items: center;
-          gap: 1.5rem;
-        }
-        .header-platform {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: 1.1rem;
-          color: #0a1628;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-        }
-        .header-signin {
+        .header-right { display: flex; align-items: center; gap: 2rem; }
+        .header-nav a {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
           font-size: 0.72rem;
           letter-spacing: 0.14em;
           text-transform: uppercase;
+          color: #e2e8f0;
+          text-decoration: none;
+          transition: color 0.15s;
+        }
+        .header-nav { display: flex; gap: 1.75rem; }
+        .header-nav a:hover { color: #c9a84c; }
+        .header-signin {
+          font-family: 'Barlow Condensed', sans-serif;
+          font-weight: 700;
+          font-size: 0.7rem;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
           color: #0a1628;
-          border: 1.5px solid #c9a84c;
+          background: #c9a84c;
+          border: none;
           padding: 0.45rem 1.1rem;
           text-decoration: none;
-          transition: all 0.15s;
+          transition: opacity 0.15s;
         }
-        .header-signin:hover { background: #c9a84c; }
+        .header-signin:hover { opacity: 0.85; }
 
-        /* ── HERO ── */
+        /* HERO — compact, everything above the fold */
         .hero {
           position: relative;
-          min-height: 88vh;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -127,10 +78,9 @@ export default function LandingPage() {
           text-align: center;
           background: #f3f4f6;
           overflow: hidden;
-          padding: 4rem 2rem;
+          padding: 2.5rem 2rem 3rem;
+          min-height: calc(100vh - 68px);
         }
-
-        /* Building watermark */
         .hero-watermark {
           position: absolute;
           inset: 0;
@@ -139,8 +89,6 @@ export default function LandingPage() {
           opacity: 0.05;
           pointer-events: none;
         }
-
-        /* B mark watermark behind content */
         .hero-b-watermark {
           position: absolute;
           top: 50%;
@@ -149,77 +97,56 @@ export default function LandingPage() {
           opacity: 0.04;
           pointer-events: none;
           user-select: none;
-          width: 500px;
-          height: 550px;
         }
-
         .hero-content {
           position: relative;
           z-index: 2;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0;
-          max-width: 700px;
+          max-width: 680px;
           width: 100%;
+          gap: 0;
         }
-
-        /* Gold divider line */
-        .gold-rule {
-          width: 60px;
-          height: 2px;
-          background: #c9a84c;
-          margin: 0 auto;
-        }
-
+        .gold-rule { width: 48px; height: 2px; background: #c9a84c; }
         .hero-amdg {
           font-family: Georgia, serif;
-          font-size: 0.65rem;
+          font-size: 0.6rem;
           letter-spacing: 0.3em;
           color: #6b7280;
           text-transform: uppercase;
-          margin: 1.25rem 0;
+          margin: 0.9rem 0;
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 0.75rem;
         }
-        .hero-amdg::before, .hero-amdg::after {
-          content: '+';
-          color: #c9a84c;
-          font-size: 1rem;
-        }
-
+        .hero-amdg::before, .hero-amdg::after { content: '+'; color: #c9a84c; font-size: 0.85rem; }
         .hero-title {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 900;
-          font-size: clamp(3.8rem, 10vw, 6.5rem);
+          font-size: clamp(3rem, 8vw, 5.5rem);
           color: #0a1628;
           line-height: 0.88;
           letter-spacing: -0.01em;
           text-transform: uppercase;
-          margin: 1.5rem 0 0.5rem;
+          margin: 1rem 0 0.5rem;
         }
-        .hero-title-gold {
-          color: #c9a84c;
-          display: block;
-        }
-
+        .hero-title-gold { color: #c9a84c; display: block; }
         .hero-sub {
           font-family: 'Barlow', sans-serif;
-          font-size: 1rem;
+          font-size: 0.92rem;
           color: #4b5563;
-          line-height: 1.75;
-          max-width: 460px;
-          margin: 1.5rem auto 2.5rem;
+          line-height: 1.7;
+          max-width: 420px;
+          margin: 0.9rem auto 1.75rem;
         }
 
-        /* Three role buttons — symmetric grid */
+        /* Role grid — symmetric 3-column */
         .role-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 0;
           width: 100%;
-          max-width: 600px;
+          max-width: 580px;
           border: 2px solid #0a1628;
         }
         .role-cell {
@@ -233,10 +160,10 @@ export default function LandingPage() {
           color: #c9a84c;
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          padding: 1rem 0.5rem;
+          padding: 0.9rem 0.5rem;
           text-decoration: none;
           text-align: center;
           border-bottom: 1px solid #1e3a5f;
@@ -249,146 +176,60 @@ export default function LandingPage() {
         .role-btn-main.red { background: #7c2d12; color: #fff; border-bottom: none; }
         .role-btn-main.red:hover { background: #c9a84c; color: #0a1628; }
         .role-btn-register {
-          background: transparent;
+          background: #fff;
           color: #0a1628;
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
-          font-size: 0.65rem;
+          font-size: 0.62rem;
           letter-spacing: 0.14em;
           text-transform: uppercase;
-          padding: 0.6rem 0.5rem;
+          padding: 0.55rem 0.5rem;
           text-decoration: none;
           text-align: center;
           display: block;
-          transition: all 0.15s;
+          transition: background 0.15s;
         }
         .role-btn-register:hover { background: #f3f4f6; }
-        .role-btn-spacer { padding: 0.6rem; }
+        .role-btn-spacer { padding: 0.55rem; background: #fff; }
 
-        .scroll-hint {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          margin-top: 2.5rem;
-        }
-        .scroll-hint-line { width: 40px; height: 1px; background: #9ca3af; }
-        .scroll-hint-text {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.6rem;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: #9ca3af;
-        }
-
-        /* ── HOW IT WORKS ── */
-        .how-section {
-          background: #0a1628;
-          padding: 5rem 3rem;
-          text-align: center;
-        }
-        .section-eyebrow {
-          width: 40px;
-          height: 2px;
-          background: #c9a84c;
-          margin: 0 auto 1.5rem;
-        }
-        .section-title {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: clamp(2.2rem, 5vw, 3.8rem);
-          text-transform: uppercase;
-          letter-spacing: 0.02em;
-          line-height: 0.92;
-        }
-        .steps-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 0;
-          margin-top: 3.5rem;
-          border: 1px solid #1e3a5f;
-        }
-        .step-card {
-          border-right: 1px solid #1e3a5f;
-          border-top: 3px solid #c9a84c;
-          padding: 2rem 1.5rem;
-          text-align: left;
-        }
-        .step-card:last-child { border-right: none; }
-        .step-num {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: 3rem;
-          color: #c9a84c;
-          opacity: 0.25;
-          line-height: 1;
-          margin-bottom: 0.75rem;
-        }
-        .step-title {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 800;
-          font-size: 0.95rem;
-          color: #fff;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-bottom: 0.6rem;
-        }
-        .step-body {
-          font-family: 'Barlow', sans-serif;
-          font-size: 0.82rem;
-          color: #94a3b8;
-          line-height: 1.7;
-        }
-
-        /* ── STATS ── */
-        .stats-bar {
-          background: #c9a84c;
-          padding: 2.75rem 3rem;
-        }
+        /* STATS */
+        .stats-bar { background: #c9a84c; padding: 2.25rem 3rem; }
         .stats-grid {
-          max-width: 900px;
+          max-width: 860px;
           margin: 0 auto;
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 0;
           text-align: center;
         }
-        .stat-item {
-          padding: 0 1rem;
-          border-right: 1px solid rgba(10,22,40,0.2);
-        }
+        .stat-item { padding: 0 1rem; border-right: 1px solid rgba(10,22,40,0.2); }
         .stat-item:last-child { border-right: none; }
         .stat-num {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 900;
-          font-size: 2.8rem;
+          font-size: 2.5rem;
           color: #0a1628;
           line-height: 1;
         }
         .stat-label {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
-          font-size: 0.65rem;
+          font-size: 0.62rem;
           color: #0a1628;
           letter-spacing: 0.16em;
           text-transform: uppercase;
-          margin-top: 0.3rem;
-          opacity: 0.75;
+          margin-top: 0.25rem;
+          opacity: 0.7;
         }
 
-        /* ── QUOTE ── */
+        /* QUOTE */
         .quote-section {
           background: #f3f4f6;
-          padding: 6rem 3rem;
+          padding: 5rem 3rem;
           text-align: center;
           position: relative;
           overflow: hidden;
         }
-        .quote-cross {
-          position: absolute;
-          opacity: 0.1;
-        }
+        .quote-cross { position: absolute; opacity: 0.1; }
         .quote-b-bg {
           position: absolute;
           top: 50%;
@@ -397,35 +238,26 @@ export default function LandingPage() {
           opacity: 0.035;
           pointer-events: none;
         }
-        .quote-inner {
-          position: relative;
-          z-index: 1;
-          max-width: 600px;
-          margin: 0 auto;
-        }
+        .quote-inner { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; }
         .quote-text {
           font-family: Georgia, serif;
           font-style: italic;
-          font-size: clamp(1rem, 2.5vw, 1.25rem);
+          font-size: clamp(1rem, 2.5vw, 1.2rem);
           color: #0a1628;
           line-height: 1.85;
         }
         .quote-attr {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
-          font-size: 0.7rem;
+          font-size: 0.68rem;
           letter-spacing: 0.2em;
           text-transform: uppercase;
           color: #6b7280;
           margin-top: 1.5rem;
         }
 
-        /* ── FOOTER ── */
-        .footer {
-          background: #0a1628;
-          border-top: 4px solid #c9a84c;
-          padding: 2.5rem 3rem;
-        }
+        /* FOOTER */
+        .footer { background: #0a1628; border-top: 4px solid #c9a84c; padding: 2rem 3rem; }
         .footer-inner {
           max-width: 960px;
           margin: 0 auto;
@@ -434,50 +266,32 @@ export default function LandingPage() {
           align-items: center;
           gap: 2rem;
         }
-        .footer-left {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
+        .footer-left { display: flex; align-items: center; gap: 0.75rem; }
         .footer-brand {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
-          font-size: 0.9rem;
+          font-size: 0.88rem;
           color: #c9a84c;
           letter-spacing: 0.12em;
           text-transform: uppercase;
         }
-        .footer-sub {
-          font-family: 'Barlow', sans-serif;
-          font-size: 0.65rem;
-          color: #475569;
-        }
-        .footer-center {
-          text-align: center;
-        }
+        .footer-sub { font-family: 'Barlow', sans-serif; font-size: 0.62rem; color: #475569; }
+        .footer-center { text-align: center; }
         .footer-amdg {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
-          font-size: 0.7rem;
+          font-size: 0.68rem;
           letter-spacing: 0.2em;
           text-transform: uppercase;
           color: #c9a84c;
-          margin-bottom: 0.3rem;
+          margin-bottom: 0.25rem;
         }
-        .footer-school {
-          font-family: 'Barlow', sans-serif;
-          font-size: 0.62rem;
-          color: #475569;
-        }
-        .footer-right {
-          display: flex;
-          gap: 1.5rem;
-          justify-content: flex-end;
-        }
+        .footer-school { font-family: 'Barlow', sans-serif; font-size: 0.6rem; color: #475569; }
+        .footer-right { display: flex; gap: 1.5rem; justify-content: flex-end; }
         .footer-link {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 700;
-          font-size: 0.68rem;
+          font-size: 0.65rem;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           color: #64748b;
@@ -487,12 +301,11 @@ export default function LandingPage() {
         .footer-link:hover { color: #c9a84c; }
 
         @media (max-width: 768px) {
-          .top-bar { padding: 0 1.5rem; }
-          .main-header { padding: 0 1.5rem; }
-          .hero { padding: 3rem 1.5rem; }
-          .role-grid { grid-template-columns: 1fr; border: none; gap: 0.5rem; }
+          .main-header { padding: 0 1.25rem; }
+          .header-nav { display: none; }
+          .hero { padding: 1.5rem 1.25rem 2rem; }
+          .role-grid { grid-template-columns: 1fr; border: none; gap: 0.5rem; max-width: 320px; }
           .role-cell { border-right: none; border: 2px solid #0a1628; }
-          .steps-grid { grid-template-columns: 1fr 1fr; }
           .stats-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
           .stat-item { border-right: none; }
           .footer-inner { grid-template-columns: 1fr; text-align: center; }
@@ -503,38 +316,29 @@ export default function LandingPage() {
 
       <div className="wp2pt-wrap">
 
-        {/* TOP BAR */}
-        <div className="top-bar">
-          <div className="top-bar-brand">
-            WP2PT
-            <span>Wolverines Peer-to-Peer Tutoring</span>
-          </div>
-          <nav className="top-bar-nav">
-            <Link href="/student/login">Student</Link>
-            <Link href="/tutor/login">Volunteer Tutor</Link>
-            <Link href="/proctor/login">Proctor</Link>
-          </nav>
-        </div>
-
-        {/* HEADER — seal + school name left, platform name + sign in right */}
+        {/* SINGLE HEADER */}
         <header className="main-header">
           <div className="header-left">
-            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit Seal" width={56} height={56} style={{ objectFit: 'contain' }} />
+            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit Seal" width={48} height={48} style={{ objectFit: 'contain' }} />
             <div>
               <div className="header-school-name">Belen Jesuit</div>
               <div className="header-school-sub">Preparatory School</div>
             </div>
           </div>
           <div className="header-right">
-            <span className="header-platform">WP2PT</span>
+            <nav className="header-nav">
+              <Link href="/student/login">Student</Link>
+              <Link href="/tutor/login">Volunteer Tutor</Link>
+              <Link href="/proctor/login">Proctor</Link>
+            </nav>
             <Link href="/student/login" className="header-signin">Sign In</Link>
           </div>
         </header>
 
-        {/* HERO */}
+        {/* HERO — compact, role buttons immediately visible */}
         <section className="hero">
 
-          {/* Architectural building watermark */}
+          {/* Building watermark */}
           <svg className="hero-watermark" viewBox="0 0 1000 580" aria-hidden="true">
             <rect x="200" y="240" width="600" height="320" fill="none" stroke="#0a1628" strokeWidth="2"/>
             <polyline points="160,240 500,110 840,240" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
@@ -559,17 +363,15 @@ export default function LandingPage() {
             <ellipse cx="922" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
           </svg>
 
-          {/* B mark behind everything */}
+          {/* B mark watermark */}
           <div className="hero-b-watermark" aria-hidden="true">
-            <Image src="/clipart765116.png" alt="" fill style={{ objectFit: 'contain' }} />
+            <Image src="/clipart765116.png" alt="" width={480} height={530} style={{ objectFit: 'contain' }} />
           </div>
 
           <div className="hero-content">
-            {/* Seal centered at top of hero */}
-            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit" width={110} height={110} style={{ objectFit: 'contain', marginBottom: '1rem' }} />
+            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit" width={90} height={90} style={{ objectFit: 'contain', marginBottom: '0.75rem' }} />
 
             <div className="gold-rule" />
-
             <div className="hero-amdg">Ad Majorem Dei Gloriam</div>
 
             <h1 className="hero-title">
@@ -582,7 +384,7 @@ export default function LandingPage() {
               A student-built platform connecting Belen Jesuit students with volunteer tutors — automatically matched, confirmed by email, and tracked by the Proctor.
             </p>
 
-            {/* Perfectly symmetric 3-column role grid */}
+            {/* Symmetric 3-column role grid */}
             <div className="role-grid">
               <div className="role-cell">
                 <Link href="/student/login" className="role-btn-main">I'm a Student</Link>
@@ -597,32 +399,6 @@ export default function LandingPage() {
                 <div className="role-btn-spacer" />
               </div>
             </div>
-
-            <div className="scroll-hint">
-              <div className="scroll-hint-line" />
-              <span className="scroll-hint-text">Scroll to discover</span>
-              <div className="scroll-hint-line" />
-            </div>
-          </div>
-        </section>
-
-        {/* HOW IT WORKS */}
-        <section className="how-section">
-          <div className="section-eyebrow" />
-          <h2 className="section-title" style={{ color: '#fff' }}>How It Works</h2>
-          <div className="steps-grid" style={{ maxWidth: '960px', margin: '3.5rem auto 0' }}>
-            {[
-              { num: '01', title: 'Student Requests', body: 'Register, select your course, and pick an available time slot on the calendar.' },
-              { num: '02', title: 'Tutor Registers', body: 'List every course you can teach and set your weekly availability.' },
-              { num: '03', title: 'Automatic Match', body: 'The platform pairs student and tutor instantly, sending confirmation emails to both.' },
-              { num: '04', title: 'Proctor Tracks', body: 'The Proctor monitors sessions, grade progress, and service hours in real time.' },
-            ].map(s => (
-              <div key={s.num} className="step-card">
-                <div className="step-num">{s.num}</div>
-                <div className="step-title">{s.title}</div>
-                <p className="step-body">{s.body}</p>
-              </div>
-            ))}
           </div>
         </section>
 
@@ -645,7 +421,6 @@ export default function LandingPage() {
 
         {/* QUOTE */}
         <section className="quote-section">
-          {/* Four symmetric crosses at corners */}
           <div className="quote-cross" style={{ top: '2rem', left: '2rem' }}>
             <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
           </div>
@@ -658,20 +433,17 @@ export default function LandingPage() {
           <div className="quote-cross" style={{ bottom: '2rem', right: '2rem' }}>
             <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
           </div>
-
-          {/* Large B watermark */}
           <div className="quote-b-bg">
-            <Image src="/clipart765116.png" alt="" width={420} height={460} style={{ objectFit: 'contain' }} aria-hidden="true" />
+            <Image src="/clipart765116.png" alt="" width={400} height={440} style={{ objectFit: 'contain' }} aria-hidden="true" />
           </div>
-
           <div className="quote-inner">
-            <div className="gold-rule" style={{ marginBottom: '2rem' }} />
+            <div className="gold-rule" style={{ margin: '0 auto 1.75rem' }} />
             <blockquote className="quote-text">
-              "Built by a Wolverine, for Wolverines — gifted permanently to Belen Jesuit so that every class after mine benefits from it."
+              "Built by a Wolverine, for Wolverines."
             </blockquote>
             <div className="quote-attr">Diego A. Núñez &nbsp;·&nbsp; Class of 2027</div>
-            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
-              <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Seal" width={64} height={64} style={{ objectFit: 'contain', opacity: 0.5 }} />
+            <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'center' }}>
+              <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Seal" width={56} height={56} style={{ objectFit: 'contain', opacity: 0.45 }} />
             </div>
           </div>
         </section>
@@ -680,7 +452,7 @@ export default function LandingPage() {
         <footer className="footer">
           <div className="footer-inner">
             <div className="footer-left">
-              <Image src="/clipart765116.png" alt="Belen B" width={34} height={38} style={{ objectFit: 'contain' }} />
+              <Image src="/clipart765116.png" alt="Belen B" width={32} height={36} style={{ objectFit: 'contain' }} />
               <div>
                 <div className="footer-brand">WP2PT</div>
                 <div className="footer-sub">Wolverines Peer-to-Peer Tutoring</div>
