@@ -1,26 +1,13 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function LandingPage() {
   return (
     <>
-      {/* Import Barlow Condensed — Belen's headline font style */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        .belen-hero-bg {
-          background: #f4f5f7;
-          position: relative;
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
         .belen-btn-primary {
           display: block;
           background: #0a1628;
@@ -36,12 +23,7 @@ export default function LandingPage() {
           transition: all 0.15s;
           text-align: center;
         }
-        .belen-btn-primary:hover {
-          background: #c9a84c;
-          border-color: #c9a84c;
-          color: #0a1628;
-        }
-
+        .belen-btn-primary:hover { background: #c9a84c; border-color: #c9a84c; color: #0a1628; }
         .belen-btn-outline {
           display: block;
           background: transparent;
@@ -57,21 +39,13 @@ export default function LandingPage() {
           transition: all 0.15s;
           text-align: center;
         }
-        .belen-btn-outline:hover {
-          background: #c9a84c;
-          color: #0a1628;
-        }
-
-        .step-card {
-          background: #0d1f3c;
-          border-top: 3px solid #c9a84c;
-          padding: 2rem 1.75rem;
-        }
-
+        .belen-btn-outline:hover { background: #c9a84c; color: #0a1628; }
+        .step-card { background: #0d1f3c; border-top: 3px solid #c9a84c; padding: 2rem 1.75rem; }
         @media (max-width: 640px) {
-          .hero-title { font-size: 3.5rem !important; }
-          .role-grid { flex-direction: column !important; }
+          .hero-title { font-size: 3.2rem !important; }
+          .role-grid { flex-direction: column !important; align-items: center; }
           .stats-grid { grid-template-columns: 1fr 1fr !important; }
+          .footer-inner { flex-direction: column !important; text-align: center; }
         }
       `}</style>
 
@@ -82,38 +56,19 @@ export default function LandingPage() {
 
         {/* HEADER */}
         <header style={{
-          background: '#fff',
-          borderBottom: '1px solid #e2ddd4',
-          padding: '0 2.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: '76px',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
+          background: '#fff', borderBottom: '1px solid #e2ddd4',
+          padding: '0 2.5rem', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', height: '76px',
+          position: 'sticky', top: 0, zIndex: 100,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {/* Belen B Mark — SVG recreation of the signature navy/gold B */}
-            <svg width="48" height="52" viewBox="0 0 48 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Outer gold shape */}
-              <path d="M4 0 L44 0 Q48 0 48 4 L48 44 Q48 52 40 52 L8 52 Q0 52 0 44 L0 8 Q0 4 4 0 Z" fill="#c9a84c"/>
-              {/* White border */}
-              <path d="M6 3 L42 3 Q45 3 45 6 L45 43 Q45 49 39 49 L9 49 Q3 49 3 43 L3 9 Q3 6 6 3 Z" fill="white"/>
-              {/* Navy inner shape */}
-              <path d="M8 6 L40 6 Q43 6 43 9 L43 42 Q43 46 39 46 L9 46 Q5 46 5 42 L5 10 Q5 7 8 6 Z" fill="#0a1628"/>
-              {/* The B letterform in old english style */}
-              <text x="8" y="40" fontFamily="Georgia, serif" fontWeight="900" fontSize="36" fill="#c9a84c" letterSpacing="-2">B</text>
-              {/* Gold inner highlight */}
-              <path d="M8 6 L40 6 Q43 6 43 9 L43 12 L8 12 Z" fill="#c9a84c" opacity="0.15"/>
-            </svg>
-
+            {/* Real Belen B logo */}
+            <Image src="/clipart765116.png" alt="Belen Jesuit B" width={48} height={52} style={{ objectFit: 'contain' }} />
             <div>
               <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.95rem', color: '#0a1628', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.1 }}>Belen Jesuit</div>
               <div style={{ fontFamily: "'Barlow', sans-serif", fontWeight: 400, fontSize: '0.7rem', color: '#6b7280', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Preparatory School</div>
             </div>
           </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '1rem', color: '#0a1628', letterSpacing: '0.12em', textTransform: 'uppercase' }}>WP2PT</div>
             <Link href="/student/login" style={{ textDecoration: 'none' }}>
@@ -124,49 +79,35 @@ export default function LandingPage() {
           </div>
         </header>
 
-        {/* HERO SECTION */}
-        <section className="belen-hero-bg">
+        {/* HERO */}
+        <section style={{ position: 'relative', minHeight: '92vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: '#f4f5f7' }}>
 
-          {/* Architectural SVG watermark */}
+          {/* Architectural watermark */}
           <svg viewBox="0 0 1000 600" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.055, pointerEvents: 'none' }} aria-hidden="true">
-            {/* Main building */}
             <rect x="200" y="250" width="600" height="330" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
-            {/* Roofline */}
             <polyline points="160,250 500,120 840,250" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
-            {/* Cross at peak */}
             <line x1="500" y1="68" x2="500" y2="120" stroke="#0a1628" strokeWidth="3"/>
             <line x1="478" y1="88" x2="522" y2="88" stroke="#0a1628" strokeWidth="3"/>
-            {/* Center arch */}
             <path d="M430 580 L430 390 Q500 320 570 390 L570 580" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
-            {/* Left arches */}
             <path d="M240 580 L240 420 Q270 380 300 420 L300 580" fill="none" stroke="#0a1628" strokeWidth="2"/>
             <path d="M320 580 L320 420 Q350 380 380 420 L380 580" fill="none" stroke="#0a1628" strokeWidth="2"/>
-            {/* Right arches */}
             <path d="M620 580 L620 420 Q650 380 680 420 L680 580" fill="none" stroke="#0a1628" strokeWidth="2"/>
             <path d="M700 580 L700 420 Q730 380 760 420 L760 580" fill="none" stroke="#0a1628" strokeWidth="2"/>
-            {/* Windows */}
             <rect x="230" y="270" width="60" height="70" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <rect x="320" y="270" width="60" height="70" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <rect x="620" y="270" width="60" height="70" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <rect x="710" y="270" width="60" height="70" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            {/* Palm trees left */}
             <line x1="100" y1="580" x2="110" y2="350" stroke="#0a1628" strokeWidth="2"/>
             <ellipse cx="105" cy="330" rx="50" ry="28" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <ellipse cx="85" cy="315" rx="40" ry="20" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <ellipse cx="125" cy="315" rx="40" ry="20" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            {/* Palm trees right */}
             <line x1="900" y1="580" x2="890" y2="350" stroke="#0a1628" strokeWidth="2"/>
             <ellipse cx="895" cy="330" rx="50" ry="28" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <ellipse cx="875" cy="315" rx="40" ry="20" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
             <ellipse cx="915" cy="315" rx="40" ry="20" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            {/* AMDG cross symbol center top */}
-            <line x1="500" y1="150" x2="500" y2="200" stroke="#0a1628" strokeWidth="1.5"/>
-            <line x1="480" y1="170" x2="520" y2="170" stroke="#0a1628" strokeWidth="1.5"/>
-            <text x="472" y="148" fontFamily="Georgia" fontSize="14" fill="#0a1628" letterSpacing="3">AM</text>
-            <text x="472" y="215" fontFamily="Georgia" fontSize="14" fill="#0a1628" letterSpacing="3">DG</text>
           </svg>
 
-          {/* Gold left sidebar — exactly like belenjesuit.org */}
+          {/* Gold left sidebar */}
           <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', background: '#c9a84c', width: '38px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
             <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.6rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: '#0a1628', writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
               Wolverines · WP2PT
@@ -177,20 +118,24 @@ export default function LandingPage() {
           <div style={{ position: 'relative', zIndex: 3, textAlign: 'center', maxWidth: '820px', padding: '2rem 4rem' }}>
 
             {/* AMDG cross mark */}
-            <div style={{ marginBottom: '1.75rem', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
-              <svg width="38" height="42" viewBox="0 0 38 42" fill="none">
-                <text x="1" y="14" fontFamily="Georgia, serif" fontSize="11" fill="#0a1628" letterSpacing="6">A M</text>
-                <line x1="19" y1="0" x2="19" y2="42" stroke="#0a1628" strokeWidth="1.2"/>
-                <line x1="0" y1="21" x2="38" y2="21" stroke="#0a1628" strokeWidth="1.2"/>
-                <text x="1" y="36" fontFamily="Georgia, serif" fontSize="11" fill="#0a1628" letterSpacing="6">D G</text>
+            <div style={{ marginBottom: '1.75rem', display: 'inline-flex', justifyContent: 'center' }}>
+              <svg width="42" height="44" viewBox="0 0 42 44" fill="none">
+                <text x="0" y="14" fontFamily="Georgia, serif" fontSize="11" fill="#0a1628" letterSpacing="5">A M</text>
+                <line x1="21" y1="0" x2="21" y2="44" stroke="#0a1628" strokeWidth="1.2"/>
+                <line x1="0" y1="22" x2="42" y2="22" stroke="#0a1628" strokeWidth="1.2"/>
+                <text x="0" y="40" fontFamily="Georgia, serif" fontSize="11" fill="#0a1628" letterSpacing="5">D G</text>
               </svg>
             </div>
 
-            {/* Main headline — Barlow Condensed Extra Bold like Belen site */}
+            {/* Real Belen B — large, centered above title */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+              <Image src="/clipart765116.png" alt="Belen Jesuit" width={100} height={110} style={{ objectFit: 'contain' }} />
+            </div>
+
             <h1 className="hero-title" style={{
               fontFamily: "'Barlow Condensed', sans-serif",
               fontWeight: 900,
-              fontSize: 'clamp(3.5rem, 9vw, 6.5rem)',
+              fontSize: 'clamp(3.2rem, 9vw, 6rem)',
               color: '#0a1628',
               lineHeight: 0.9,
               letterSpacing: '-0.01em',
@@ -198,7 +143,7 @@ export default function LandingPage() {
               marginBottom: '1.5rem',
             }}>
               Wolverines<br />
-              <span style={{ color: '#c9a84c', WebkitTextStroke: '0px' }}>Peer-to-Peer</span><br />
+              <span style={{ color: '#c9a84c' }}>Peer-to-Peer</span><br />
               Tutoring
             </h1>
 
@@ -206,7 +151,7 @@ export default function LandingPage() {
               A student-built platform connecting Belen Jesuit students with volunteer tutors — automatically matched, confirmed by email, and tracked by the Proctor.
             </p>
 
-            {/* Role buttons — three gold-bordered boxes like Belen site */}
+            {/* Role buttons */}
             <div className="role-grid" style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '160px' }}>
                 <Link href="/student/login" className="belen-btn-primary">I'm a Student</Link>
@@ -218,11 +163,9 @@ export default function LandingPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '160px' }}>
                 <Link href="/proctor/login" className="belen-btn-primary" style={{ background: '#7c2d12', borderColor: '#7c2d12' }}>Proctor Access</Link>
-                <div style={{ height: '30px' }} />
               </div>
             </div>
 
-            {/* Scroll line */}
             <div style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
               <div style={{ width: '40px', height: '1px', background: '#9ca3af' }} />
               <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#9ca3af' }}>Scroll to discover</span>
@@ -231,7 +174,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* HOW IT WORKS — dark navy like Belen's dark sections */}
+        {/* HOW IT WORKS */}
         <section style={{ background: '#0a1628', padding: '5rem 2.5rem' }}>
           <div style={{ maxWidth: '960px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
@@ -275,30 +218,22 @@ export default function LandingPage() {
         </section>
 
         {/* MISSION QUOTE */}
-        <section style={{ background: '#f4f5f7', padding: '5rem 2.5rem', textAlign: 'center', position: 'relative' }}>
-          {/* Decorative crosses */}
-          <div style={{ position: 'absolute', top: '2rem', left: '2rem', opacity: 0.12 }}>
-            <svg width="32" height="32" viewBox="0 0 32 32"><line x1="16" y1="0" x2="16" y2="32" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="16" x2="32" y2="16" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div style={{ position: 'absolute', top: '2rem', right: '2rem', opacity: 0.12 }}>
-            <svg width="32" height="32" viewBox="0 0 32 32"><line x1="16" y1="0" x2="16" y2="32" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="16" x2="32" y2="16" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div style={{ position: 'absolute', bottom: '2rem', left: '2rem', opacity: 0.12 }}>
-            <svg width="32" height="32" viewBox="0 0 32 32"><line x1="16" y1="0" x2="16" y2="32" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="16" x2="32" y2="16" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div style={{ position: 'absolute', bottom: '2rem', right: '2rem', opacity: 0.12 }}>
-            <svg width="32" height="32" viewBox="0 0 32 32"><line x1="16" y1="0" x2="16" y2="32" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="16" x2="32" y2="16" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-
-          <div style={{ maxWidth: '620px', margin: '0 auto' }}>
-            <div style={{ width: '40px', height: '2px', background: '#c9a84c', margin: '0 auto 2rem' }} />
-            {/* Large B watermark behind quote */}
-            <div style={{ position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: '14rem', color: '#0a1628', opacity: 0.04, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>B</div>
-              <blockquote style={{ fontFamily: "Georgia, serif", fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', color: '#0a1628', lineHeight: 1.8, fontStyle: 'italic', position: 'relative', zIndex: 1 }}>
-                "Built by a Wolverine, for Wolverines — gifted permanently to Belen Jesuit so every class after mine benefits."
-              </blockquote>
+        <section style={{ background: '#f4f5f7', padding: '5rem 2.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          {/* Corner crosses */}
+          {['top:2rem;left:2rem', 'top:2rem;right:2rem', 'bottom:2rem;left:2rem', 'bottom:2rem;right:2rem'].map((pos, i) => (
+            <div key={i} style={{ position: 'absolute', ...Object.fromEntries(pos.split(';').map(p => p.split(':'))), opacity: 0.12 }}>
+              <svg width="30" height="30" viewBox="0 0 30 30"><line x1="15" y1="0" x2="15" y2="30" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="15" x2="30" y2="15" stroke="#0a1628" strokeWidth="2"/></svg>
             </div>
+          ))}
+          {/* Large B watermark */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.04, pointerEvents: 'none', userSelect: 'none' }}>
+            <Image src="/clipart765116.png" alt="" width={400} height={440} style={{ objectFit: 'contain' }} aria-hidden="true" />
+          </div>
+          <div style={{ maxWidth: '620px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+            <div style={{ width: '40px', height: '2px', background: '#c9a84c', margin: '0 auto 2rem' }} />
+            <blockquote style={{ fontFamily: "Georgia, serif", fontSize: 'clamp(1rem, 2.5vw, 1.25rem)', color: '#0a1628', lineHeight: 1.8, fontStyle: 'italic' }}>
+              "Built by a Wolverine, for Wolverines — gifted permanently to Belen Jesuit so every class after mine benefits."
+            </blockquote>
             <div style={{ marginTop: '1.5rem', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: '#6b7280' }}>
               Diego A. Núñez · Class of 2027
             </div>
@@ -307,32 +242,22 @@ export default function LandingPage() {
 
         {/* FOOTER */}
         <footer style={{ background: '#0a1628', borderTop: '4px solid #c9a84c', padding: '2.5rem' }}>
-          <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="footer-inner" style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              {/* Footer B mark */}
-              <svg width="32" height="35" viewBox="0 0 48 52" fill="none">
-                <path d="M4 0 L44 0 Q48 0 48 4 L48 44 Q48 52 40 52 L8 52 Q0 52 0 44 L0 8 Q0 4 4 0 Z" fill="#c9a84c"/>
-                <path d="M6 3 L42 3 Q45 3 45 6 L45 43 Q45 49 39 49 L9 49 Q3 49 3 43 L3 9 Q3 6 6 3 Z" fill="white"/>
-                <path d="M8 6 L40 6 Q43 6 43 9 L43 42 Q43 46 39 46 L9 46 Q5 46 5 42 L5 10 Q5 7 8 6 Z" fill="#0a1628"/>
-                <text x="8" y="40" fontFamily="Georgia, serif" fontWeight="900" fontSize="36" fill="#c9a84c" letterSpacing="-2">B</text>
-              </svg>
+              <Image src="/clipart765116.png" alt="Belen B" width={36} height={40} style={{ objectFit: 'contain' }} />
               <div>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.85rem', color: '#c9a84c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>WP2PT</div>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.9rem', color: '#c9a84c', letterSpacing: '0.1em', textTransform: 'uppercase' }}>WP2PT</div>
                 <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '0.7rem', color: '#475569' }}>Wolverines Peer-to-Peer Tutoring</div>
               </div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#c9a84c', marginBottom: '0.25rem' }}>
-                Ad Majorem Dei Gloriam
-              </div>
-              <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '0.65rem', color: '#475569' }}>
-                Belen Jesuit Preparatory School · Miami, Florida
-              </div>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#c9a84c', marginBottom: '0.25rem' }}>Ad Majorem Dei Gloriam</div>
+              <div style={{ fontFamily: "'Barlow', sans-serif", fontSize: '0.65rem', color: '#475569' }}>Belen Jesuit Preparatory School · Miami, Florida</div>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <Link href="/student/login" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', textDecoration: 'none' }}>Students</Link>
-              <Link href="/tutor/login" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', textDecoration: 'none' }}>Tutors</Link>
-              <Link href="/proctor/login" style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', textDecoration: 'none' }}>Proctor</Link>
+            <div style={{ display: 'flex', gap: '1.5rem' }}>
+              {[['Students', '/student/login'], ['Tutors', '/tutor/login'], ['Proctor', '/proctor/login']].map(([label, href]) => (
+                <Link key={label} href={href} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#94a3b8', textDecoration: 'none' }}>{label}</Link>
+              ))}
             </div>
           </div>
         </footer>
