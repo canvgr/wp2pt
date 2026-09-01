@@ -46,6 +46,24 @@ type TutorAvailabilityRow = {
 
 type View = 'calendar' | 'hours' | 'grades' | 'available'
 
+const MONTHS = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+]
+
+const CURRENT_YEAR = new Date().getFullYear()
+const YEARS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1]
+
 export default function ProctorDashboardPage() {
   const router = useRouter()
   const [sessions, setSessions] = useState<SessionRow[]>([])
@@ -59,6 +77,14 @@ export default function ProctorDashboardPage() {
   const [savingClassroom, setSavingClassroom] = useState(false)
   const [classroomSaved, setClassroomSaved] = useState(false)
   const [search, setSearch] = useState('')
+
+  // Delete data state
+  const [showDeletePanel, setShowDeletePanel] = useState(false)
+  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([])
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2 | 3>(0)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteSuccess, setDeleteSuccess] = useState(false)
 
   const days = getWeekDays(weekOffset)
 
@@ -118,6 +144,34 @@ export default function ProctorDashboardPage() {
     setTimeout(() => setClassroomSaved(false), 3000)
   }
 
+  function toggleMonth(m: string) {
+    setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  }
+
+  async function executeDelete() {
+    if (selectedMonths.length === 0) return
+    setDeleting(true)
+    for (const month of selectedMonths) {
+      const from = `${selectedYear}-${month}-01`
+      const lastDay = new Date(parseInt(selectedYear), parseInt(month), 0).getDate()
+      const to = `${selectedYear}-${month}-${String(lastDay).padStart(2, '0')}`
+      await supabase.from('sessions').delete().gte('session_date', from).lte('session_date', to)
+      await supabase.from('tutor_availability').delete().gte('available_date', from).lte('available_date', to)
+    }
+    setDeleting(false)
+    setDeleteSuccess(true)
+    setDeleteStep(0)
+    setSelectedMonths([])
+    setShowDeletePanel(false)
+    setTimeout(() => setDeleteSuccess(false), 5000)
+    loadSessions()
+  }
+
+  const selectedMonthLabels = selectedMonths
+    .sort()
+    .map(m => MONTHS.find(x => x.value === m)?.label)
+    .join(', ')
+
   function getSlots(date: string, time: string): SessionRow[] {
     return sessions.filter(s => s.session_date === date && s.session_time === time)
   }
@@ -173,15 +227,8 @@ export default function ProctorDashboardPage() {
   }
 
   const q = search.toLowerCase().trim()
-
-  const filteredTutorStats = tutorStats.filter(t =>
-    !q || t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q)
-  )
-
-  const filteredGradeHistory = gradeHistory.filter(e =>
-    !q || e.studentName.toLowerCase().includes(q) || e.studentEmail.toLowerCase().includes(q) || e.course.toLowerCase().includes(q)
-  )
-
+  const filteredTutorStats = tutorStats.filter(t => !q || t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q))
+  const filteredGradeHistory = gradeHistory.filter(e => !q || e.studentName.toLowerCase().includes(q) || e.studentEmail.toLowerCase().includes(q) || e.course.toLowerCase().includes(q))
   const filteredAvailability = availability.filter(a => !a.is_booked).filter(a =>
     !q || (a.tutor && (`${a.tutor.first_name} ${a.tutor.last_name}`).toLowerCase().includes(q)) ||
     (a.tutor && a.tutor.email.toLowerCase().includes(q)) ||
@@ -203,11 +250,149 @@ export default function ProctorDashboardPage() {
             Wolverines Peer-to-Peer Tutoring · Belen Jesuit Preparatory School
           </p>
         </div>
-        <button className="btn-secondary" style={{ fontSize: '0.85rem' }}
-          onClick={async () => { await supabase.auth.signOut(); router.push('/') }}>
-          Sign Out
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => { setShowDeletePanel(!showDeletePanel); setDeleteStep(0); setSelectedMonths([]) }}
+            style={{
+              fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', fontWeight: 700,
+              padding: '0.45rem 0.9rem', background: showDeletePanel ? '#7f1d1d' : '#fef2f2',
+              color: showDeletePanel ? 'white' : '#b91c1c',
+              border: '1.5px solid #fca5a5', borderRadius: '7px', cursor: 'pointer',
+            }}
+          >
+            🗑 Clear Data
+          </button>
+          <button className="btn-secondary" style={{ fontSize: '0.85rem' }}
+            onClick={async () => { await supabase.auth.signOut(); router.push('/') }}>
+            Sign Out
+          </button>
+        </div>
       </div>
+
+      {/* Delete success banner */}
+      {deleteSuccess && (
+        <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '0.75rem 1rem', marginTop: '0.75rem', fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: '#15803d', fontWeight: 600 }}>
+          ✓ Data successfully deleted for the selected months.
+        </div>
+      )}
+
+      {/* Delete Panel */}
+      {showDeletePanel && (
+        <div style={{ marginTop: '1rem', background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '1.25rem' }}>
+          <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: '#7f1d1d', marginBottom: '0.75rem' }}>
+            🗑 Clear Session Data by Month
+          </div>
+          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#b91c1c', marginBottom: '1rem' }}>
+            This permanently deletes all sessions and tutor availability records for the selected months. This cannot be undone.
+          </p>
+
+          {/* Year selector */}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 700, color: '#7f1d1d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Year</div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {YEARS.map(y => (
+                <button key={y} onClick={() => setSelectedYear(String(y))} style={{
+                  fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
+                  padding: '0.35rem 0.9rem',
+                  background: selectedYear === String(y) ? '#7f1d1d' : 'white',
+                  color: selectedYear === String(y) ? 'white' : '#7f1d1d',
+                  border: '1.5px solid #fca5a5', borderRadius: '6px', cursor: 'pointer',
+                }}>{y}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Month selector */}
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 700, color: '#7f1d1d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Select Months to Delete
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {MONTHS.map(m => (
+                <button key={m.value} onClick={() => toggleMonth(m.value)} style={{
+                  fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', fontWeight: 600,
+                  padding: '0.3rem 0.75rem',
+                  background: selectedMonths.includes(m.value) ? '#7f1d1d' : 'white',
+                  color: selectedMonths.includes(m.value) ? 'white' : '#7f1d1d',
+                  border: '1.5px solid #fca5a5', borderRadius: '6px', cursor: 'pointer',
+                }}>{m.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Triple confirmation steps */}
+          {selectedMonths.length > 0 && deleteStep === 0 && (
+            <button onClick={() => setDeleteStep(1)} style={{
+              fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
+              padding: '0.5rem 1.25rem', background: '#b91c1c', color: 'white',
+              border: 'none', borderRadius: '7px', cursor: 'pointer',
+            }}>
+              Delete data for {selectedMonthLabels} {selectedYear} →
+            </button>
+          )}
+
+          {deleteStep === 1 && (
+            <div style={{ background: 'white', border: '1.5px solid #fca5a5', borderRadius: '8px', padding: '1rem', marginTop: '0.5rem' }}>
+              <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#7f1d1d', marginBottom: '0.5rem' }}>
+                ⚠️ Step 1 of 3 — Confirm months
+              </div>
+              <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#4a5568', marginBottom: '0.75rem' }}>
+                You are about to delete all data for <strong>{selectedMonthLabels} {selectedYear}</strong>. Are these the correct months?
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => setDeleteStep(2)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                  Yes, these months are correct →
+                </button>
+                <button onClick={() => setDeleteStep(0)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'white', color: '#7f1d1d', border: '1.5px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}>
+                  Go back
+                </button>
+              </div>
+            </div>
+          )}
+
+          {deleteStep === 2 && (
+            <div style={{ background: 'white', border: '1.5px solid #fca5a5', borderRadius: '8px', padding: '1rem', marginTop: '0.5rem' }}>
+              <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: '#7f1d1d', marginBottom: '0.5rem' }}>
+                ⚠️ Step 2 of 3 — Confirm deletion
+              </div>
+              <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#4a5568', marginBottom: '0.75rem' }}>
+                This will permanently delete all sessions and tutor availability for <strong>{selectedMonthLabels} {selectedYear}</strong>. This action <strong>cannot be undone</strong>. Are you sure you want to delete this data?
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => setDeleteStep(3)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: '#b91c1c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                  Yes, I want to delete this data →
+                </button>
+                <button onClick={() => setDeleteStep(0)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'white', color: '#7f1d1d', border: '1.5px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}>
+                  Go back
+                </button>
+              </div>
+            </div>
+          )}
+
+          {deleteStep === 3 && (
+            <div style={{ background: '#7f1d1d', border: '1.5px solid #b91c1c', borderRadius: '8px', padding: '1rem', marginTop: '0.5rem' }}>
+              <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: 'white', marginBottom: '0.5rem' }}>
+                ⚠️ Step 3 of 3 — Final confirmation
+              </div>
+              <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.82rem', color: '#fecaca', marginBottom: '0.75rem' }}>
+                Last chance. You are permanently deleting all data for <strong style={{ color: 'white' }}>{selectedMonthLabels} {selectedYear}</strong>. Click Confirm to proceed.
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={executeDelete}
+                  disabled={deleting}
+                  style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'white', color: '#7f1d1d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                >
+                  {deleting ? 'Deleting…' : '✓ Confirm — Delete permanently'}
+                </button>
+                <button onClick={() => setDeleteStep(0)} style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.82rem', padding: '0.4rem 1rem', background: 'transparent', color: '#fecaca', border: '1.5px solid #fecaca', borderRadius: '6px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Classroom Setting */}
       <div style={{
@@ -236,27 +421,15 @@ export default function ProctorDashboardPage() {
               color: 'var(--navy)', width: '160px', outline: 'none',
             }}
           />
-          <button
-            onClick={saveClassroom}
-            disabled={savingClassroom || !classroomInput.trim()}
-            style={{
-              fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
-              padding: '0.5rem 1rem', background: 'var(--navy)', color: 'var(--gold)',
-              border: 'none', borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
+          <button onClick={saveClassroom} disabled={savingClassroom || !classroomInput.trim()} style={{
+            fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
+            padding: '0.5rem 1rem', background: 'var(--navy)', color: 'var(--gold)',
+            border: 'none', borderRadius: '7px', cursor: 'pointer', whiteSpace: 'nowrap',
+          }}>
             {savingClassroom ? 'Saving…' : 'Save & Notify'}
           </button>
-          {classroomSaved && (
-            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: '#155e3b', fontWeight: 600 }}>
-              ✓ Saved — emails sent!
-            </span>
-          )}
-          {classroom && !classroomSaved && (
-            <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Current: <strong style={{ color: 'var(--navy)' }}>{classroom}</strong>
-            </span>
-          )}
+          {classroomSaved && <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: '#155e3b', fontWeight: 600 }}>✓ Saved — emails sent!</span>}
+          {classroom && !classroomSaved && <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Current: <strong style={{ color: 'var(--navy)' }}>{classroom}</strong></span>}
         </div>
       </div>
 
@@ -320,9 +493,7 @@ export default function ProctorDashboardPage() {
                   {days.map(d => (
                     <th key={d.toISOString()}>
                       {d.toLocaleDateString('en-US', { weekday: 'short' })}<br />
-                      <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>
-                        {d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
-                      </span>
+                      <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</span>
                     </th>
                   ))}
                 </tr>
@@ -344,18 +515,15 @@ export default function ProctorDashboardPage() {
                       const color = paired.length > 0 ? '#0e4a2e' : unmatched.length > 0 ? '#633806' : '#ccc'
                       return (
                         <td key={dateStr} style={{ verticalAlign: 'top', position: 'relative' }}>
-                          <div
-                            onClick={() => hasActivity && setExpandedSlot(isExpanded ? null : slotKey)}
-                            style={{
-                              padding: '3px 2px', borderRadius: '5px', background: bg, color,
-                              display: 'flex', flexDirection: 'column', alignItems: 'center',
-                              justifyContent: 'center', gap: '1px', minHeight: '44px', width: '100%',
-                              fontSize: '0.7rem', userSelect: 'none',
-                              cursor: hasActivity ? 'pointer' : 'default',
-                              border: isExpanded ? '2px solid var(--navy)' : '2px solid transparent',
-                              boxSizing: 'border-box',
-                            }}
-                          >
+                          <div onClick={() => hasActivity && setExpandedSlot(isExpanded ? null : slotKey)} style={{
+                            padding: '3px 2px', borderRadius: '5px', background: bg, color,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            justifyContent: 'center', gap: '1px', minHeight: '44px', width: '100%',
+                            fontSize: '0.7rem', userSelect: 'none',
+                            cursor: hasActivity ? 'pointer' : 'default',
+                            border: isExpanded ? '2px solid var(--navy)' : '2px solid transparent',
+                            boxSizing: 'border-box',
+                          }}>
                             {!hasActivity && <span style={{ fontSize: '0.65rem' }}>—</span>}
                             {hasActivity && (
                               <>
@@ -383,9 +551,7 @@ export default function ProctorDashboardPage() {
                                   <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>✓ Paired ({paired.length})</div>
                                   {paired.map(s => (
                                     <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '4px 6px', marginBottom: '3px' }}>
-                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
-                                      <span style={{ opacity: 0.6 }}> ↔ </span>
-                                      <span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
+                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span><span style={{ opacity: 0.6 }}> ↔ </span><span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
                                       <span style={{ display: 'block', fontSize: '0.62rem', color: '#155e3b', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
                                     </div>
                                   ))}
@@ -393,7 +559,7 @@ export default function ProctorDashboardPage() {
                               )}
                               {unmatched.length > 0 && (
                                 <div style={{ marginBottom: '0.4rem' }}>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>⏳ Waiting for tutor ({unmatched.length})</div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>⏳ Waiting ({unmatched.length})</div>
                                   {unmatched.map(s => (
                                     <div key={s.id} style={{ fontSize: '0.72rem', color: '#633806', background: '#fef9ee', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
                                       <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span>
@@ -404,7 +570,7 @@ export default function ProctorDashboardPage() {
                               )}
                               {freeTutors.length > 0 && (
                                 <div>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>🙋 Tutors available ({freeTutors.length})</div>
+                                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>🙋 Available ({freeTutors.length})</div>
                                   {freeTutors.map(a => (
                                     <div key={a.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#eff9f5', borderRadius: '5px', padding: '3px 6px', marginBottom: '3px' }}>
                                       <span style={{ fontWeight: 600 }}>{a.tutor?.last_name}</span>
@@ -413,8 +579,7 @@ export default function ProctorDashboardPage() {
                                   ))}
                                 </div>
                               )}
-                              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.4rem', textAlign: 'right', cursor: 'pointer' }}
-                                onClick={() => setExpandedSlot(null)}>close ✕</div>
+                              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.4rem', textAlign: 'right', cursor: 'pointer' }} onClick={() => setExpandedSlot(null)}>close ✕</div>
                             </div>
                           )}
                         </td>
@@ -432,56 +597,39 @@ export default function ProctorDashboardPage() {
       {view === 'hours' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search by name or email…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
-                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
-                border: '1.5px solid #e2d9c8', borderRadius: '8px',
-                outline: 'none', color: 'var(--navy)',
-              }}
-            />
+            <input type="text" placeholder="Search by name or email…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
-          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Total minutes each Volunteer Tutor has committed to matched sessions this term.
-          </p>
-          {loading ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : filteredTutorStats.length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No tutor data yet.'}</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {filteredTutorStats.map((t, i) => (
-                <div key={t.id} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}>{i + 1}</span>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}>
-                    {t.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.email}</div>
-                  </div>
-                  <div style={{ flex: 2 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
-                      <div style={{ flex: 1, background: '#f0ece0', borderRadius: '999px', height: '8px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.round((t.mins / maxMins) * 100)}%`, height: '100%', borderRadius: '999px', background: '#155e3b' }} />
+          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Total minutes each Volunteer Tutor has committed to matched sessions this term.</p>
+          {loading ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
+            : filteredTutorStats.length === 0 ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No tutor data yet.'}</p>
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {filteredTutorStats.map((t, i) => (
+                  <div key={t.id} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', minWidth: '20px', textAlign: 'center' }}>{i + 1}</span>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}>
+                      {t.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.email}</div>
+                    </div>
+                    <div style={{ flex: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '3px' }}>
+                        <div style={{ flex: 1, background: '#f0ece0', borderRadius: '999px', height: '8px', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.round((t.mins / maxMins) * 100)}%`, height: '100%', borderRadius: '999px', background: '#155e3b' }} />
+                        </div>
+                        <span style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: 'var(--navy)', minWidth: '52px', textAlign: 'right' }}>{t.mins} min</span>
                       </div>
-                      <span style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.9rem', color: 'var(--navy)', minWidth: '52px', textAlign: 'right' }}>{t.mins} min</span>
-                    </div>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {t.sessions} session{t.sessions !== 1 ? 's' : ''} · {(t.mins / 60).toFixed(1)} hrs
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.sessions} session{t.sessions !== 1 ? 's' : ''} · {(t.mins / 60).toFixed(1)} hrs</div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
         </div>
       )}
 
@@ -489,104 +637,71 @@ export default function ProctorDashboardPage() {
       {view === 'grades' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search by name, email or course…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
-                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
-                border: '1.5px solid #e2d9c8', borderRadius: '8px',
-                outline: 'none', color: 'var(--navy)',
-              }}
-            />
+            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
-          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Grade progression per student per course — earliest to latest session.
-          </p>
-          {loading ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : filteredGradeHistory.length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No students found for "${search}"` : 'No grade data yet.'}</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {filteredGradeHistory.map((entry, i) => {
-                const change = gradeChange(entry)
-                const graded = entry.sessions.filter(s => s.grade !== null)
-                return (
-                  <div key={i} className="card" style={{ padding: '1.25rem' }}>
-                    <div className="flex-between" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--navy)' }}>{entry.studentName}</div>
-                        <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.studentEmail}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Grade progression per student per course — earliest to latest session.</p>
+          {loading ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
+            : filteredGradeHistory.length === 0 ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No students found for "${search}"` : 'No grade data yet.'}</p>
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {filteredGradeHistory.map((entry, i) => {
+                  const change = gradeChange(entry)
+                  const graded = entry.sessions.filter(s => s.grade !== null)
+                  return (
+                    <div key={i} className="card" style={{ padding: '1.25rem' }}>
+                      <div className="flex-between" style={{ marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <div>
-                          <span style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: 'var(--navy)' }}>{entry.course}</span>
-                          <span className={`badge ${entry.subject === 'math' ? 'badge-math' : 'badge-science'}`} style={{ marginLeft: '0.5rem' }}>{entry.subject}</span>
+                          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--navy)' }}>{entry.studentName}</div>
+                          <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.studentEmail}</div>
                         </div>
-                        {change !== null && (
-                          <div style={{
-                            fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem',
-                            padding: '0.2rem 0.7rem', borderRadius: '999px',
-                            background: change > 0 ? '#f0fdf4' : change < 0 ? '#fef2f2' : '#f9f6ef',
-                            color: change > 0 ? '#15803d' : change < 0 ? '#b91c1c' : 'var(--text-muted)',
-                            border: `1px solid ${change > 0 ? '#86efac' : change < 0 ? '#fca5a5' : 'var(--border)'}`,
-                          }}>
-                            {change > 0 ? `↑ +${change} pts` : change < 0 ? `↓ ${change} pts` : '→ No change'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          <div>
+                            <span style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.88rem', color: 'var(--navy)' }}>{entry.course}</span>
+                            <span className={`badge ${entry.subject === 'math' ? 'badge-math' : 'badge-science'}`} style={{ marginLeft: '0.5rem' }}>{entry.subject}</span>
+                          </div>
+                          {change !== null && (
+                            <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.85rem', padding: '0.2rem 0.7rem', borderRadius: '999px', background: change > 0 ? '#f0fdf4' : change < 0 ? '#fef2f2' : '#f9f6ef', color: change > 0 ? '#15803d' : change < 0 ? '#b91c1c' : 'var(--text-muted)', border: `1px solid ${change > 0 ? '#86efac' : change < 0 ? '#fca5a5' : 'var(--border)'}` }}>
+                              {change > 0 ? `↑ +${change} pts` : change < 0 ? `↓ ${change} pts` : '→ No change'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        {entry.sessions.map((s, si) => {
+                          const dateLabel = new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          const prev = entry.sessions.slice(0, si).filter(x => x.grade !== null)
+                          const prevGrade = prev.length > 0 ? prev[prev.length - 1].grade as number : null
+                          const improved = s.grade !== null && prevGrade !== null && s.grade > prevGrade
+                          const declined = s.grade !== null && prevGrade !== null && s.grade < prevGrade
+                          return (
+                            <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                              {si > 0 && s.grade !== null && <span style={{ fontSize: '0.8rem', color: '#d1d5db', alignSelf: 'center', marginBottom: '16px', paddingRight: '3px' }}>→</span>}
+                              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: !s.grade ? '#f3f4f6' : improved ? '#f0fdf4' : declined ? '#fef2f2' : '#f9f6ef', border: `2px solid ${!s.grade ? '#e5e7eb' : improved ? '#86efac' : declined ? '#fca5a5' : 'var(--gold)'}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', color: !s.grade ? '#9ca3af' : improved ? '#15803d' : declined ? '#b91c1c' : 'var(--navy)' }}>
+                                {s.grade !== null ? <><span style={{ fontSize: '0.95rem', fontWeight: 700, lineHeight: 1 }}>{s.grade}</span><span style={{ fontSize: '0.55rem', opacity: 0.7 }}>/100</span></> : <span style={{ fontSize: '0.6rem', textAlign: 'center', lineHeight: 1.2 }}>No grade</span>}
+                              </div>
+                              <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>{dateLabel}</div>
+                              <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.6rem', color: s.status === 'completed' ? '#15803d' : s.status === 'matched' ? '#92400e' : '#9ca3af' }}>
+                                {s.status === 'completed' ? '✓ done' : s.status === 'matched' ? '⏳ upcoming' : '○ pending'}
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {graded.length >= 2 && (
+                          <div style={{ marginLeft: '6px', padding: '6px 10px', background: '#f9f6ef', borderRadius: '8px', fontFamily: 'system-ui, sans-serif', alignSelf: 'center' }}>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Range</div>
+                            <div style={{ fontWeight: 700, color: 'var(--navy)', fontSize: '0.9rem' }}>{Math.min(...graded.map(s => s.grade as number))} – {Math.max(...graded.map(s => s.grade as number))}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>{graded.length} graded</div>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                      {entry.sessions.map((s, si) => {
-                        const dateLabel = new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        const prev = entry.sessions.slice(0, si).filter(x => x.grade !== null)
-                        const prevGrade = prev.length > 0 ? prev[prev.length - 1].grade as number : null
-                        const improved = s.grade !== null && prevGrade !== null && s.grade > prevGrade
-                        const declined = s.grade !== null && prevGrade !== null && s.grade < prevGrade
-                        return (
-                          <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                            {si > 0 && s.grade !== null && <span style={{ fontSize: '0.8rem', color: '#d1d5db', alignSelf: 'center', marginBottom: '16px', paddingRight: '3px' }}>→</span>}
-                            <div style={{
-                              width: '48px', height: '48px', borderRadius: '50%',
-                              background: !s.grade ? '#f3f4f6' : improved ? '#f0fdf4' : declined ? '#fef2f2' : '#f9f6ef',
-                              border: `2px solid ${!s.grade ? '#e5e7eb' : improved ? '#86efac' : declined ? '#fca5a5' : 'var(--gold)'}`,
-                              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                              fontFamily: 'system-ui, sans-serif',
-                              color: !s.grade ? '#9ca3af' : improved ? '#15803d' : declined ? '#b91c1c' : 'var(--navy)',
-                            }}>
-                              {s.grade !== null
-                                ? <><span style={{ fontSize: '0.95rem', fontWeight: 700, lineHeight: 1 }}>{s.grade}</span><span style={{ fontSize: '0.55rem', opacity: 0.7 }}>/100</span></>
-                                : <span style={{ fontSize: '0.6rem', textAlign: 'center', lineHeight: 1.2 }}>No grade</span>
-                              }
-                            </div>
-                            <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>{dateLabel}</div>
-                            <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.6rem', color: s.status === 'completed' ? '#15803d' : s.status === 'matched' ? '#92400e' : '#9ca3af' }}>
-                              {s.status === 'completed' ? '✓ done' : s.status === 'matched' ? '⏳ upcoming' : '○ pending'}
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {graded.length >= 2 && (
-                        <div style={{ marginLeft: '6px', padding: '6px 10px', background: '#f9f6ef', borderRadius: '8px', fontFamily: 'system-ui, sans-serif', alignSelf: 'center' }}>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '2px' }}>Range</div>
-                          <div style={{ fontWeight: 700, color: 'var(--navy)', fontSize: '0.9rem' }}>
-                            {Math.min(...graded.map(s => s.grade as number))} – {Math.max(...graded.map(s => s.grade as number))}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>{graded.length} graded</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )}
         </div>
       )}
 
@@ -594,57 +709,40 @@ export default function ProctorDashboardPage() {
       {view === 'available' && (
         <div>
           <div style={{ marginBottom: '1rem', position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search by name, email or course…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem',
-                padding: '0.6rem 0.75rem 0.6rem 2.25rem',
-                border: '1.5px solid #e2d9c8', borderRadius: '8px',
-                outline: 'none', color: 'var(--navy)',
-              }}
-            />
+            <input type="text" placeholder="Search by name, email or course…" value={search} onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', padding: '0.6rem 0.75rem 0.6rem 2.25rem', border: '1.5px solid #e2d9c8', borderRadius: '8px', outline: 'none', color: 'var(--navy)' }} />
             <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', opacity: 0.4 }}>🔍</span>
             {search && <span onClick={() => setSearch('')} style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>✕</span>}
           </div>
-          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Volunteer Tutors who have set availability but have not yet been matched with a student.
-          </p>
-          {loading ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
-          ) : filteredAvailability.length === 0 ? (
-            <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No unmatched tutors available right now.'}</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {filteredAvailability.map((a, i) => (
-                <div key={i} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
-                    {a.tutor ? (a.tutor.first_name[0] + a.tutor.last_name[0]).toUpperCase() : '?'}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>
-                      {a.tutor ? `${a.tutor.first_name} ${a.tutor.last_name}` : 'Unknown'}
+          <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Volunteer Tutors who have set availability but have not yet been matched with a student.</p>
+          {loading ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>Loading…</p>
+            : filteredAvailability.length === 0 ? <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>{search ? `No tutors found for "${search}"` : 'No unmatched tutors available right now.'}</p>
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {filteredAvailability.map((a, i) => (
+                  <div key={i} style={{ background: 'white', border: '0.5px solid var(--border)', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--navy)', color: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', fontSize: '0.9rem', fontWeight: 700, flexShrink: 0 }}>
+                      {a.tutor ? (a.tutor.first_name[0] + a.tutor.last_name[0]).toUpperCase() : '?'}
                     </div>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.tutor?.email}</div>
-                  </div>
-                  <div style={{ flex: 2 }}>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', marginBottom: '3px' }}>
-                      {new Date(a.available_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {a.available_time} · {a.duration} min
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--navy)' }}>{a.tutor ? `${a.tutor.first_name} ${a.tutor.last_name}` : 'Unknown'}</div>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{a.tutor?.email}</div>
                     </div>
-                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {a.subject === 'math' ? '📐 Math' : '🔬 Science'} · {Array.isArray(a.courses) ? a.courses.join(', ') : a.courses}
+                    <div style={{ flex: 2 }}>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', fontWeight: 600, color: 'var(--navy)', marginBottom: '3px' }}>
+                        {new Date(a.available_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {a.available_time} · {a.duration} min
+                      </div>
+                      <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {a.subject === 'math' ? '📐 Math' : '🔬 Science'} · {Array.isArray(a.courses) ? a.courses.join(', ') : a.courses}
+                      </div>
+                    </div>
+                    <div style={{ background: '#eff9f5', border: '0.5px solid #bbf7d0', borderRadius: '999px', padding: '3px 10px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>
+                      Available
                     </div>
                   </div>
-                  <div style={{ background: '#eff9f5', border: '0.5px solid #bbf7d0', borderRadius: '999px', padding: '3px 10px', fontFamily: 'system-ui, sans-serif', fontSize: '0.75rem', fontWeight: 700, color: '#15803d', flexShrink: 0 }}>
-                    Available
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
         </div>
       )}
 
