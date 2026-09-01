@@ -40,6 +40,9 @@ export const SCIENCE_COURSES = [
   'Physics',
 ]
 export const TIME_SLOTS = [
+  '1:30 PM',
+  '2:00 PM',
+  '2:30 PM',
   '3:00 PM',
   '3:30 PM',
   '4:00 PM',
