@@ -70,19 +70,19 @@ export default function TutorRegisterPage() {
           <div className="form-row">
             <div className="form-group">
               <label>First Name</label>
-              <input type="text" required placeholder="Diego"
+              <input type="text" required placeholder="First name"
                 value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} />
             </div>
             <div className="form-group">
               <label>Last Name</label>
-              <input type="text" required placeholder="Nunez"
+              <input type="text" required placeholder="Last name"
                 value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
             </div>
           </div>
 
           <div className="form-group">
             <label>School Email</label>
-            <input type="email" required placeholder="dnunez@belenwolverines.org"
+            <input type="email" required placeholder="Your school email"
               value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           </div>
 
