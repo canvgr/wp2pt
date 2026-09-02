@@ -52,20 +52,6 @@ export default function LandingPage() {
           transition: color 0.15s;
         }
         .header-nav a:hover { color: #c9a84c; }
-        .header-signin {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.7rem;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #0a1628;
-          background: #c9a84c;
-          border: none;
-          padding: 0.45rem 1.1rem;
-          text-decoration: none;
-          transition: opacity 0.15s;
-        }
-        .header-signin:hover { opacity: 0.85; }
         .hero {
           position: relative;
           display: flex;
@@ -117,17 +103,23 @@ export default function LandingPage() {
           gap: 0.75rem;
         }
         .hero-amdg::before, .hero-amdg::after { content: '+'; color: #c9a84c; font-size: 0.85rem; }
+
         .hero-title {
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 900;
           font-size: clamp(3rem, 8vw, 5.5rem);
           color: #0a1628;
-          line-height: 0.88;
           letter-spacing: -0.01em;
           text-transform: uppercase;
           margin: 1rem 0 0.5rem;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.06em;
         }
-        .hero-title-gold { color: #c9a84c; display: block; }
+        .hero-title-row { display: block; line-height: 0.88; }
+        .hero-title-gold { color: #c9a84c; }
+
         .hero-sub {
           font-family: 'Barlow', sans-serif;
           font-size: 0.92rem;
@@ -154,15 +146,19 @@ export default function LandingPage() {
           color: #c9a84c;
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 800;
-          font-size: 0.75rem;
-          letter-spacing: 0.14em;
+          font-size: 0.68rem;
+          letter-spacing: 0.08em;
+          line-height: 1.3;
           text-transform: uppercase;
-          padding: 0.9rem 0.5rem;
+          padding: 0.85rem 0.5rem;
           text-decoration: none;
           text-align: center;
           border-bottom: 1px solid #1e3a5f;
           transition: all 0.15s;
-          display: block;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 3.4rem;
         }
         .role-btn-main:hover { background: #c9a84c; color: #0a1628; }
         .role-btn-main.green { background: #155e3b; color: #fff; }
@@ -318,7 +314,6 @@ export default function LandingPage() {
               <Link href="/tutor/login">Volunteer Tutor</Link>
               <Link href="/proctor/login">Proctor</Link>
             </nav>
-            <Link href="/student/login" className="header-signin">Sign In</Link>
           </div>
         </header>
 
@@ -355,24 +350,24 @@ export default function LandingPage() {
             <div className="gold-rule" />
             <div className="hero-amdg">Ad Majorem Dei Gloriam</div>
             <h1 className="hero-title">
-              Wolverines<br />
-              <span className="hero-title-gold">Peer-to-Peer</span><br />
-              Tutoring
+              <span className="hero-title-row">Wolverines</span>
+              <span className="hero-title-row hero-title-gold">Peer-to-Peer</span>
+              <span className="hero-title-row">Tutoring</span>
             </h1>
             <p className="hero-sub">
               A student-built platform connecting Belen Jesuit students with volunteer tutors — automatically matched, confirmed by email, and tracked by the Proctor.
             </p>
             <div className="role-grid">
               <div className="role-cell">
-                <Link href="/student/login" className="role-btn-main">I'm a Student</Link>
+                <Link href="/student/login" className="role-btn-main">Student Sign In</Link>
                 <Link href="/student/register" className="role-btn-register">Register</Link>
               </div>
               <div className="role-cell">
-                <Link href="/tutor/login" className="role-btn-main green">Volunteer Tutor</Link>
+                <Link href="/tutor/login" className="role-btn-main green">Volunteer Tutor Sign In</Link>
                 <Link href="/tutor/register" className="role-btn-register">Register</Link>
               </div>
               <div className="role-cell">
-                <Link href="/proctor/login" className="role-btn-main red">Proctor Access</Link>
+                <Link href="/proctor/login" className="role-btn-main red">Proctor Sign In</Link>
                 <div className="role-btn-spacer" />
               </div>
             </div>
