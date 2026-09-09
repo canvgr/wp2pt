@@ -7,6 +7,15 @@ import { MATH_COURSES, SCIENCE_COURSES, TIME_SLOTS, DURATION, getWeekDays, forma
 type Step = 1 | 2
 type Subject = 'math' | 'science'
 
+type ExistingRequest = {
+  id: string
+  course: string
+  session_date: string
+  session_time: string
+  duration: number
+  status: string
+}
+
 export default function StudentRequestPage() {
   const router = useRouter()
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
@@ -21,12 +30,38 @@ export default function StudentRequestPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Student's already-submitted requests (pending or matched)
+  const [existingRequests, setExistingRequests] = useState<ExistingRequest[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>('')
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.push('/student/login')
       else setUser({ id: data.user.id, email: data.user.email! })
     })
   }, [router])
+
+  useEffect(() => {
+    if (user) loadExistingRequests()
+  }, [user])
+
+  // Keep the selected date valid as requests load/change: default to the
+  // earliest upcoming date (today or later) that still has a request.
+  useEffect(() => {
+    const todayISO = formatDateISO(new Date())
+    const upcomingDates = Array.from(new Set(
+      existingRequests
+        .filter(r => r.session_date >= todayISO)
+        .map(r => r.session_date)
+    )).sort()
+    if (upcomingDates.length === 0) {
+      if (selectedDate !== '') setSelectedDate('')
+    } else if (!upcomingDates.includes(selectedDate)) {
+      setSelectedDate(upcomingDates[0])
+    }
+  }, [existingRequests])
 
   const days = getWeekDays(weekOffset)
   const courses = subject === 'math' ? MATH_COURSES : SCIENCE_COURSES
@@ -36,6 +71,29 @@ export default function StudentRequestPage() {
   useEffect(() => {
     if (step === 2 && course) loadTutorAvailability()
   }, [step, weekOffset, course])
+
+  async function loadExistingRequests() {
+    if (!user) return
+    setRequestsLoading(true)
+    const { data } = await supabase
+      .from('sessions')
+      .select('id, course, session_date, session_time, duration, status')
+      .eq('student_id', user.id)
+      .in('status', ['pending', 'matched'])
+      .order('session_date', { ascending: true })
+      .order('session_time', { ascending: true })
+    setExistingRequests(data || [])
+    setRequestsLoading(false)
+  }
+
+  async function handleCancelRequest(id: string) {
+    setCancellingId(id)
+    // .eq('status', 'pending') is a safety guard so a matched session can
+    // never be cancelled this way, even if called unexpectedly.
+    await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', id).eq('status', 'pending')
+    setExistingRequests(prev => prev.filter(r => r.id !== id))
+    setCancellingId(null)
+  }
 
   async function loadTutorAvailability() {
     const dateStrings = days.map(formatDateISO)
@@ -112,6 +170,7 @@ export default function StudentRequestPage() {
         duration: DURATION,
       }),
     }).catch(() => {})
+    await loadExistingRequests()
     setSuccess(true)
     setSubmitting(false)
   }
@@ -147,6 +206,74 @@ export default function StudentRequestPage() {
       <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
         Tell us what you need — we'll find your match.
       </p>
+
+      {!requestsLoading && (() => {
+        const todayISO = formatDateISO(new Date())
+        const upcomingRequests = existingRequests.filter(r => r.session_date >= todayISO)
+        const availableDates = Array.from(new Set(upcomingRequests.map(r => r.session_date))).sort()
+        if (availableDates.length === 0) return null
+        const requestsForSelectedDate = upcomingRequests.filter(r => r.session_date === selectedDate)
+
+        return (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Your upcoming requests</label>
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                width: '100%', padding: '0.55rem 0.75rem', marginBottom: '0.75rem',
+                border: '1px solid #e2d9c8', borderRadius: '8px', background: '#fff',
+                fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--navy)'
+              }}
+            >
+              {availableDates.map(date => {
+                const count = upcomingRequests.filter(r => r.session_date === date).length
+                return (
+                  <option key={date} value={date}>
+                    {formatDate(new Date(date + 'T00:00:00'))} · {count} request{count !== 1 ? 's' : ''}
+                  </option>
+                )
+              })}
+            </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {requestsForSelectedDate.map(req => (
+                <div key={req.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: '#f9f6ef', border: '1px solid #e2d9c8', borderRadius: '8px',
+                  padding: '0.6rem 0.9rem', gap: '0.75rem', flexWrap: 'wrap'
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.88rem', fontWeight: 600, color: 'var(--navy)' }}>
+                      {req.session_time}
+                    </div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {req.course} · {req.duration} min
+                    </div>
+                  </div>
+                  {req.status === 'matched' ? (
+                    <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', color: '#854f0b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      Matched — contact the proctor to cancel
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleCancelRequest(req.id)}
+                      disabled={cancellingId === req.id}
+                      style={{
+                        fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 600,
+                        color: '#b91c1c', background: 'transparent', border: '1px solid #b91c1c',
+                        borderRadius: '6px', padding: '0.35rem 0.75rem', cursor: 'pointer', whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {cancellingId === req.id ? 'Cancelling…' : 'Cancel'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="steps">
         <div className={`step ${step === 1 ? 'active' : 'done'}`}>
           <div className="step-num">{step > 1 ? '✓' : '1'}</div>
