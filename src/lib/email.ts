@@ -140,3 +140,44 @@ export async function sendClassroomNotification({
     `,
   })
 }
+
+export async function sendCancellationNotification({
+  email,
+  name,
+  role,
+  course,
+  date,
+  time,
+}: {
+  email: string
+  name: string
+  role: 'student' | 'tutor'
+  course: string
+  date: string
+  time: string
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `❌ Tutoring Session Cancelled — ${course}`,
+    html: `
+      <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; background: #faf8f3; padding: 2rem; border-radius: 12px;">
+        <div style="background: #0a1628; padding: 1.5rem 2rem; border-radius: 8px; border-bottom: 3px solid #c9a84c; text-align: center; margin-bottom: 1.5rem;">
+          <h1 style="color: #c9a84c; margin: 0; font-size: 1.4rem; letter-spacing: 0.05em;">WP2PT</h1>
+          <p style="color: #e0cc99; margin: 0.25rem 0 0; font-family: system-ui, sans-serif; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;">Wolverines Peer-to-Peer Tutoring</p>
+        </div>
+        <h2 style="color: #0a1628;">Session Cancelled, ${name}.</h2>
+        <p style="font-family: system-ui, sans-serif; color: #4a5568;">Your Proctor has cancelled the following ${role === 'student' ? 'tutoring' : 'volunteer tutoring'} session:</p>
+        <div style="background: white; border: 1px solid #e2d9c8; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0;">
+          <table style="width: 100%; font-family: system-ui, sans-serif; border-collapse: collapse;">
+            <tr><td style="color: #4a5568; font-size: 0.85rem; padding: 0.5rem 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 120px;">Course</td><td style="font-weight: 600; color: #0a1628;">${course}</td></tr>
+            <tr><td style="color: #4a5568; font-size: 0.85rem; padding: 0.5rem 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Date</td><td style="font-weight: 600; color: #0a1628;">${date}</td></tr>
+            <tr><td style="color: #4a5568; font-size: 0.85rem; padding: 0.5rem 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Time</td><td style="font-weight: 600; color: #0a1628;">${time}</td></tr>
+          </table>
+        </div>
+        <p style="font-family: system-ui, sans-serif; color: #4a5568; font-size: 0.9rem;">${role === 'student' ? "If you'd still like to be matched with a tutor, feel free to submit a new request." : "Since this session did not take place, no service minutes were recorded for it. You're welcome to set new availability whenever you're ready to volunteer again."} If you have any questions, please contact your Proctor.</p>
+        <p style="font-family: system-ui, sans-serif; font-size: 0.75rem; color: #9ca3af; text-align: center; margin-top: 2rem; letter-spacing: 0.1em; text-transform: uppercase;">Ad Majorem Dei Gloriam · Belen Jesuit Preparatory School</p>
+      </div>
+    `,
+  })
+}
