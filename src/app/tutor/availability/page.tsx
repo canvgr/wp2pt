@@ -8,6 +8,15 @@ type Step = 1 | 2
 type Subject = 'math' | 'science'
 type SlotKey = string
 
+type ExistingSlot = {
+  id: string
+  courses: string[]
+  available_date: string
+  available_time: string
+  duration: number
+  is_booked: boolean
+}
+
 export default function TutorAvailabilityPage() {
   const router = useRouter()
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
@@ -21,6 +30,12 @@ export default function TutorAvailabilityPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  // Tutor's already-submitted availability slots (both pending and matched)
+  const [existingSlots, setExistingSlots] = useState<ExistingSlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>('')
+
   const days = getWeekDays(weekOffset)
   const allSelectedCourses = [...selectedMathCourses, ...selectedScienceCourses]
 
@@ -32,8 +47,50 @@ export default function TutorAvailabilityPage() {
   }, [router])
 
   useEffect(() => {
+    if (user) loadExistingSlots()
+  }, [user])
+
+  // Keep the selected date valid as slots load/change: default to the
+  // earliest upcoming date (today or later) that still has a slot.
+  useEffect(() => {
+    const todayISO = formatDateISO(new Date())
+    const upcomingDates = Array.from(new Set(
+      existingSlots
+        .filter(s => s.available_date >= todayISO)
+        .map(s => s.available_date)
+    )).sort()
+    if (upcomingDates.length === 0) {
+      if (selectedDate !== '') setSelectedDate('')
+    } else if (!upcomingDates.includes(selectedDate)) {
+      setSelectedDate(upcomingDates[0])
+    }
+  }, [existingSlots])
+
+  useEffect(() => {
     if (step === 2 && allSelectedCourses.length > 0) loadDemand()
   }, [step, weekOffset, allSelectedCourses.join(',')])
+
+  async function loadExistingSlots() {
+    if (!user) return
+    setSlotsLoading(true)
+    const { data } = await supabase
+      .from('tutor_availability')
+      .select('id, courses, available_date, available_time, duration, is_booked')
+      .eq('tutor_id', user.id)
+      .order('available_date', { ascending: true })
+      .order('available_time', { ascending: true })
+    setExistingSlots(data || [])
+    setSlotsLoading(false)
+  }
+
+  async function handleCancelSlot(id: string) {
+    setCancellingId(id)
+    // is_booked: false is a safety guard so a matched slot can never be
+    // removed this way, even if called unexpectedly.
+    await supabase.from('tutor_availability').delete().eq('id', id).eq('is_booked', false)
+    setExistingSlots(prev => prev.filter(s => s.id !== id))
+    setCancellingId(null)
+  }
 
   async function loadDemand() {
     const dateStrings = days.map(formatDateISO)
@@ -101,7 +158,10 @@ export default function TutorAvailabilityPage() {
     })
 
     const dates = Array.from(new Set(rows.map(r => r.available_date)))
-    await supabase.from('tutor_availability').delete().eq('tutor_id', user.id).in('available_date', dates)
+    // Only clear out this tutor's previously-unbooked slots on these dates.
+    // is_booked: false here protects any already-matched session from
+    // being wiped out if the tutor resubmits availability for the same date.
+    await supabase.from('tutor_availability').delete().eq('tutor_id', user.id).eq('is_booked', false).in('available_date', dates)
 
     const { data: insertedRows } = await supabase
       .from('tutor_availability')
@@ -126,6 +186,7 @@ export default function TutorAvailabilityPage() {
       }
     }
 
+    await loadExistingSlots()
     setSuccess(true)
     setSubmitting(false)
   }
@@ -158,6 +219,74 @@ export default function TutorAvailabilityPage() {
       <p style={{ fontFamily: 'system-ui, sans-serif', color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
         {step === 1 ? 'Select the courses you can tutor.' : 'Set the times you\'re available.'}
       </p>
+
+      {!slotsLoading && (() => {
+        const todayISO = formatDateISO(new Date())
+        const upcomingSlots = existingSlots.filter(s => s.available_date >= todayISO)
+        const availableDates = Array.from(new Set(upcomingSlots.map(s => s.available_date))).sort()
+        if (availableDates.length === 0) return null
+        const slotsForSelectedDate = upcomingSlots.filter(s => s.available_date === selectedDate)
+
+        return (
+          <div className="card" style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Your upcoming availability</label>
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                width: '100%', padding: '0.55rem 0.75rem', marginBottom: '0.75rem',
+                border: '1px solid #e2d9c8', borderRadius: '8px', background: '#fff',
+                fontFamily: 'system-ui, sans-serif', fontSize: '0.85rem', color: 'var(--navy)'
+              }}
+            >
+              {availableDates.map(date => {
+                const count = upcomingSlots.filter(s => s.available_date === date).length
+                return (
+                  <option key={date} value={date}>
+                    {formatDate(new Date(date + 'T00:00:00'))} · {count} slot{count !== 1 ? 's' : ''}
+                  </option>
+                )
+              })}
+            </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {slotsForSelectedDate.map(slot => (
+                <div key={slot.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: '#f9f6ef', border: '1px solid #e2d9c8', borderRadius: '8px',
+                  padding: '0.6rem 0.9rem', gap: '0.75rem', flexWrap: 'wrap'
+                }}>
+                  <div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.88rem', fontWeight: 600, color: 'var(--navy)' }}>
+                      {slot.available_time}
+                    </div>
+                    <div style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      {slot.courses.join(', ')} · {slot.duration} min
+                    </div>
+                  </div>
+                  {slot.is_booked ? (
+                    <span style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', color: '#854f0b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      Matched — contact the proctor to cancel
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleCancelSlot(slot.id)}
+                      disabled={cancellingId === slot.id}
+                      style={{
+                        fontFamily: 'system-ui, sans-serif', fontSize: '0.78rem', fontWeight: 600,
+                        color: '#b91c1c', background: 'transparent', border: '1px solid #b91c1c',
+                        borderRadius: '6px', padding: '0.35rem 0.75rem', cursor: 'pointer', whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {cancellingId === slot.id ? 'Cancelling…' : 'Cancel'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       <div className="steps">
         <div className={`step ${step === 1 ? 'active' : 'done'}`}>
           <div className="step-num">{step > 1 ? '✓' : '1'}</div>
