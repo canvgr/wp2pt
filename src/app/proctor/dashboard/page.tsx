@@ -84,6 +84,9 @@ export default function ProctorDashboardPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteSuccess, setDeleteSuccess] = useState(false)
 
+  // Tracks which session is mid-cancel so its button can show a busy state
+  const [cancellingSessionId, setCancellingSessionId] = useState<string | null>(null)
+
   const days = getWeekDays(weekOffset)
 
   const loadSessions = useCallback(async () => {
@@ -167,6 +170,32 @@ export default function ProctorDashboardPage() {
     loadSessions()
   }
 
+  // Cancel a matched session. The status update happens directly here since
+  // proctors already have update rights on sessions in the database — this
+  // works immediately and guarantees the tutor gets no service minutes for
+  // it (the hours/minutes calculations below already exclude 'cancelled').
+  // The follow-up call to /api/match is where cancellation emails to the
+  // student and tutor should be sent, matching how match/confirmation
+  // emails are already sent from that same route.
+  async function cancelSession(session: SessionRow) {
+    const studentName = session.student ? `${session.student.first_name} ${session.student.last_name}` : 'the student'
+    const tutorName = session.tutor ? `${session.tutor.first_name} ${session.tutor.last_name}` : 'the tutor'
+    const confirmed = window.confirm(
+      `Cancel the session between ${studentName} and ${tutorName}?\n\nThe tutor will not receive service minutes for it, and both will be notified by email.`
+    )
+    if (!confirmed) return
+    setCancellingSessionId(session.id)
+    await supabase.from('sessions').update({ status: 'cancelled' }).eq('id', session.id).eq('status', 'matched')
+    await fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger: 'cancel_session', sessionId: session.id }),
+    }).catch(() => {})
+    setCancellingSessionId(null)
+    setExpandedSlot(null)
+    loadSessions()
+  }
+
   const selectedMonthLabels = selectedMonths
     .sort()
     .map(m => MONTHS.find(x => x.value === m)?.label)
@@ -223,7 +252,10 @@ export default function ProctorDashboardPage() {
     unpaired: sessions.filter(s => s.status === 'pending').length,
     students: new Set(sessions.map(s => s.student?.email)).size,
     tutors: new Set(sessions.filter(s => s.tutor).map(s => s.tutor?.email)).size,
-    totalMins: sessions.filter(s => s.tutor).reduce((sum, s) => sum + s.duration, 0),
+    // Excludes cancelled sessions so a cancelled match no longer inflates
+    // the school-wide total (this previously counted every session with a
+    // tutor attached, regardless of status).
+    totalMins: sessions.filter(s => s.tutor && s.status !== 'cancelled').reduce((sum, s) => sum + s.duration, 0),
   }
 
   const q = search.toLowerCase().trim()
@@ -480,7 +512,11 @@ export default function ProctorDashboardPage() {
                       const paired = slotSessions.filter(s => s.status === 'matched' || s.status === 'completed')
                       const unmatched = slotSessions.filter(s => s.status === 'pending')
                       const isExpanded = expandedSlot === slotKey
-                      const hasActivity = slotSessions.length > 0 || freeTutors.length > 0
+                      // Only counts as "activity" if there's something meaningful to
+                      // show. A cancelled session still exists in slotSessions (it's
+                      // fetched with no status filter) but shouldn't make an
+                      // otherwise-empty slot look active or expand into a blank box.
+                      const hasActivity = paired.length > 0 || unmatched.length > 0 || freeTutors.length > 0
                       const bg = paired.length > 0 ? '#e8f5f0' : unmatched.length > 0 ? '#fef9ee' : '#f5f3ee'
                       const color = paired.length > 0 ? '#0e4a2e' : unmatched.length > 0 ? '#633806' : '#ccc'
                       return (
@@ -505,9 +541,20 @@ export default function ProctorDashboardPage() {
                                 <div style={{ marginBottom: '0.4rem' }}>
                                   <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#155e3b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>✓ Paired ({paired.length})</div>
                                   {paired.map(s => (
-                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '4px 6px', marginBottom: '3px' }}>
-                                      <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span><span style={{ opacity: 0.6 }}> ↔ </span><span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
-                                      <span style={{ display: 'block', fontSize: '0.62rem', color: '#155e3b', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
+                                    <div key={s.id} style={{ fontSize: '0.72rem', color: '#0e4a2e', background: '#f0fdf4', borderRadius: '5px', padding: '4px 6px', marginBottom: '3px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+                                      <div>
+                                        <span style={{ fontWeight: 600 }}>{s.student?.last_name}</span><span style={{ opacity: 0.6 }}> ↔ </span><span style={{ fontWeight: 600 }}>{s.tutor?.last_name}</span>
+                                        <span style={{ display: 'block', fontSize: '0.62rem', color: '#155e3b', opacity: 0.8 }}>{s.course.replace('AP ', '')}</span>
+                                      </div>
+                                      {s.status === 'matched' && (
+                                        <button
+                                          onClick={() => cancelSession(s)}
+                                          disabled={cancellingSessionId === s.id}
+                                          style={{ fontFamily: 'system-ui, sans-serif', fontSize: '0.62rem', fontWeight: 700, color: '#b91c1c', background: 'white', border: '1px solid #b91c1c', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                                        >
+                                          {cancellingSessionId === s.id ? '…' : 'Cancel'}
+                                        </button>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
