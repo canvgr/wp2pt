@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendStudentConfirmation, sendTutorConfirmation, sendClassroomNotification } from '@/lib/email'
+import { sendStudentConfirmation, sendTutorConfirmation, sendClassroomNotification, sendCancellationNotification } from '@/lib/email'
 
 function getSupabase() {
   return createClient(
@@ -78,6 +78,49 @@ export async function POST(req: NextRequest) {
     if (body.trigger === 'get_classroom') {
       const classroom = await getClassroom()
       return NextResponse.json({ classroom })
+    }
+
+    // Proctor-initiated cancellation of a matched session. The session's
+    // status itself is already set to 'cancelled' by the proctor dashboard
+    // directly (proctors already have that DB permission) before this route
+    // is called — this handler's job is purely to notify the student and
+    // tutor that the session was cancelled.
+    if (body.trigger === 'cancel_session') {
+      const { sessionId } = body
+      if (!sessionId) {
+        return NextResponse.json({ error: 'No sessionId provided' }, { status: 400 })
+      }
+      const { data: session } = await supabase
+        .from('sessions')
+        .select(`id, course, session_date, session_time,
+          student:profiles!sessions_student_id_fkey(first_name, last_name, email),
+          tutor:profiles!sessions_tutor_id_fkey(first_name, last_name, email)`)
+        .eq('id', sessionId)
+        .single()
+      if (!session) {
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      }
+      if (session.student) {
+        await sendCancellationNotification({
+          email: session.student.email,
+          name: `${session.student.first_name} ${session.student.last_name}`,
+          role: 'student',
+          course: session.course,
+          date: session.session_date,
+          time: session.session_time,
+        })
+      }
+      if (session.tutor) {
+        await sendCancellationNotification({
+          email: session.tutor.email,
+          name: `${session.tutor.first_name} ${session.tutor.last_name}`,
+          role: 'tutor',
+          course: session.course,
+          date: session.session_date,
+          time: session.session_time,
+        })
+      }
+      return NextResponse.json({ success: true })
     }
 
     if (body.trigger === 'student') {
