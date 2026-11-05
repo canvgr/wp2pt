@@ -1,112 +1,7 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-
-/* ------------------------------------------------------------------
-   Background drawing: classical arcade (columns + arches + railing)
-   with a palm tree on each side. Generated in code, no image needed.
-------------------------------------------------------------------- */
-type Shape = { d: string; w: number }
-
-function buildArcade(): Shape[] {
-  const out: Shape[] = []
-  const f = (n: number) => n.toFixed(1)
-  const pa = (d: string, w = 1.4) => out.push({ d, w })
-  const ln = (x1: number, y1: number, x2: number, y2: number, w = 1.4) =>
-    pa(`M${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}`, w)
-  const ci = (x: number, y: number, r: number, w = 1) =>
-    pa(`M${f(x - r)} ${f(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`, w)
-
-  const G = 320
-  const x0 = 210, x1 = 1230, n = 10, bay = (x1 - x0) / n, cw = 16, cap = G - 128
-
-  // steps
-  ln(x0 - 30, G, x1 + 30, G, 2.4); ln(x0 - 20, G - 6, x1 + 20, G - 6, 1.4); ln(x0 - 10, G - 12, x1 + 10, G - 12, 1.2)
-
-  // columns: base, tapered fluted shaft, capital
-  for (let i = 0; i <= n; i++) {
-    const cx = x0 + i * bay
-    pa(`M${cx - cw / 2 - 5} ${G - 12}V${G - 20}H${cx + cw / 2 + 5}V${G - 12}`, 1.2)
-    pa(`M${cx - cw / 2 - 3} ${G - 20}Q${cx} ${G - 27} ${cx + cw / 2 + 3} ${G - 20}`, 1.1)
-    pa(`M${cx - cw / 2} ${G - 24}Q${cx - cw / 2 - 1.5} ${(G - 24 + cap) / 2} ${cx - cw / 2 + 1.5} ${cap + 4}`, 1.4)
-    pa(`M${cx + cw / 2} ${G - 24}Q${cx + cw / 2 + 1.5} ${(G - 24 + cap) / 2} ${cx + cw / 2 - 1.5} ${cap + 4}`, 1.4)
-    for (const k of [-3, 3]) ln(cx + k, G - 28, cx + k * 0.8, cap + 8, 0.7)
-    ln(cx - cw / 2 + 1, cap + 4, cx + cw / 2 - 1, cap + 4, 1)
-    pa(`M${cx - cw / 2 + 1} ${cap + 4}Q${cx - cw / 2 - 6} ${cap} ${cx - cw / 2 - 8} ${cap - 3}H${cx + cw / 2 + 8}Q${cx + cw / 2 + 6} ${cap} ${cx + cw / 2 - 1} ${cap + 4}`, 1.2)
-    pa(`M${cx - cw / 2 - 9} ${cap - 3}V${cap - 9}H${cx + cw / 2 + 9}V${cap - 3}`, 1.2)
-  }
-
-  // arches with double outline, keystone, and roundels between arches
-  for (let i = 0; i < n; i++) {
-    const a = x0 + i * bay + cw / 2 + 9, b = x0 + (i + 1) * bay - cw / 2 - 9
-    const r = (b - a) / 2, m = (a + b) / 2, y = cap - 9
-    pa(`M${f(a)} ${y}A${f(r)} ${f(r)} 0 0 1 ${f(b)} ${y}`, 1.5)
-    pa(`M${f(a - 6)} ${y}A${f(r + 6)} ${f(r + 6)} 0 0 1 ${f(b + 6)} ${y}`, 1)
-    const top = y - r - 6
-    pa(`M${f(m - 6)} ${f(top - 2)}L${f(m - 4)} ${f(top + 12)}H${f(m + 4)}L${f(m + 6)} ${f(top - 2)}Z`, 1)
-    if (i < n - 1) ci(x0 + (i + 1) * bay, y - r - 2, 7, 0.9)
-  }
-
-  // entablature, cornice, balustrade
-  const ey = cap - 9 - (bay - cw - 18) / 2 - 16
-  ln(x0 - 14, ey, x1 + 14, ey, 1.4); ln(x0 - 14, ey - 12, x1 + 14, ey - 12, 1.2)
-  ln(x0 - 22, ey - 16, x1 + 22, ey - 16, 1.6); ln(x0 - 26, ey - 20, x1 + 26, ey - 20, 1.2)
-  const by = ey - 20
-  ln(x0 - 16, by - 30, x1 + 16, by - 30, 1.4)
-  for (let bx = x0 - 10; bx <= x1 + 10; bx += 13) {
-    pa(`M${f(bx - 2.5)} ${f(by)}Q${f(bx - 6)} ${f(by - 10)} ${f(bx - 2)} ${f(by - 15)}Q${f(bx - 4)} ${f(by - 22)} ${f(bx - 2.5)} ${f(by - 30)}M${f(bx + 2.5)} ${f(by)}Q${f(bx + 6)} ${f(by - 10)} ${f(bx + 2)} ${f(by - 15)}Q${f(bx + 4)} ${f(by - 22)} ${f(bx + 2.5)} ${f(by - 30)}`, 0.8)
-  }
-  for (let i = 0; i <= n; i += 2) {
-    const cx = x0 + i * bay
-    pa(`M${cx - 8} ${f(by)}V${f(by - 32)}H${cx + 8}V${f(by)}`, 1.1)
-  }
-
-  // palm tree: tapered ringed trunk + drooping leafy fronds
-  const palm = (bx: number, h: number, lean: number) => {
-    const tx = bx + lean, ty = G - h, wb = 10, wt = 5.5, c1 = bx + lean * 0.15
-    pa(`M${bx - wb} ${G}Q${f(c1 - (wb + wt) / 2)} ${f(G - h * 0.55)} ${f(tx - wt)} ${ty + 6}`, 1.5)
-    pa(`M${bx + wb} ${G}Q${f(c1 + (wb + wt) / 2)} ${f(G - h * 0.55)} ${f(tx + wt)} ${ty + 6}`, 1.5)
-    for (let y = G - 10; y > ty + 18; y -= 13) {
-      const t = (G - y) / h
-      const xc = (1 - t) ** 2 * bx + 2 * (1 - t) * t * c1 + t * t * tx
-      const w = wb + (wt - wb) * t
-      pa(`M${f(xc - w)} ${y}Q${f(xc)} ${y - 3} ${f(xc + w)} ${y}`, 0.75)
-    }
-    const fronds: [number, number, number][] = [
-      [-178, 150, 10], [-150, 140, 40], [-120, 105, 55], [-90, 70, 62], [-60, 105, 55],
-      [-30, 140, 40], [-2, 150, 10], [160, 110, -20], [20, 110, -20],
-    ]
-    for (const [ang, L, lift] of fronds) {
-      const r = (ang * Math.PI) / 180
-      const ex = tx + Math.cos(r) * L
-      const eyy = ty + 60 - lift * 0.2 + (Math.abs(Math.cos(r)) > 0.6 ? 25 : 0)
-      const cx = tx + Math.cos(r) * L * 0.5, cy = ty - lift
-      pa(`M${tx} ${ty}Q${f(cx)} ${f(cy)} ${f(ex)} ${f(eyy)}`, 1.1)
-      for (let k = 1; k < 11; k++) {
-        const t = k / 11
-        const px = (1 - t) ** 2 * tx + 2 * (1 - t) * t * cx + t * t * ex
-        const py = (1 - t) ** 2 * ty + 2 * (1 - t) * t * cy + t * t * eyy
-        const dx = 2 * (1 - t) * (cx - tx) + 2 * t * (ex - cx)
-        const dy = 2 * (1 - t) * (cy - ty) + 2 * t * (eyy - cy)
-        const d = Math.hypot(dx, dy), ux = dx / d, uy = dy / d
-        const ll = 10 + 26 * Math.sin(Math.PI * t)
-        for (const sg of [1, -1]) {
-          pa(`M${f(px)} ${f(py)}Q${f(px + ux * ll * 0.15 + sg * -uy * ll * 0.3)} ${f(py + ll * 0.3)} ${f(px + ux * ll * 0.45 + sg * -uy * ll * 0.25)} ${f(py + ll * 0.85)}`, 0.6)
-        }
-      }
-    }
-    for (const ox of [-4, 4, 0]) ci(tx + ox, ty + 7, 3.4, 0.9)
-  }
-  palm(90, 270, 14)
-  palm(1350, 270, -14)
-
-  // shrubs at both ends
-  for (const sx of [x0 - 48, x1 + 48]) {
-    pa(`M${sx - 30} ${G}Q${sx - 26} ${G - 22} ${sx - 10} ${G - 20}Q${sx - 4} ${G - 34} ${sx + 10} ${G - 24}Q${sx + 26} ${G - 26} ${sx + 30} ${G}`, 1)
-  }
-  return out
-}
 
 /* ------------------------------------------------------------------
    Role cards
@@ -177,7 +72,6 @@ const ROLES: Role[] = [
 
 export default function LandingPage() {
   const [flipped, setFlipped] = useState<string | null>(null)
-  const arcade = useMemo(buildArcade, [])
 
   const toggle = (key: string) => setFlipped(prev => (prev === key ? null : key))
 
@@ -211,11 +105,10 @@ export default function LandingPage() {
         .lp-cards { position:relative; z-index:2; display:grid; grid-template-columns:repeat(3, 370px); gap:30px;
           justify-content:center; margin:-120px auto 0; padding:0 24px; perspective:1600px; }
         .lp-flip { position:relative; height:400px; cursor:pointer; transform-style:preserve-3d; outline:none;
-          transition:transform .75s cubic-bezier(.2,.8,.2,1), opacity .4s, filter .4s; }
+          transition:transform .75s cubic-bezier(.2,.8,.2,1); }
         .lp-flip:hover:not(.on) { transform:translateY(-6px); }
         .lp-flip:focus-visible .lp-front { box-shadow:0 0 0 3px var(--gold), 0 28px 56px -30px rgba(10,22,40,.42); }
         .lp-flip.on { transform:rotateY(180deg) scale(1.03); }
-        .lp-cards.has .lp-flip:not(.on) { opacity:.55; filter:saturate(.6); }
         .lp-face { position:absolute; inset:0; border-radius:185px 185px 28px 28px; backface-visibility:hidden; -webkit-backface-visibility:hidden;
           display:flex; flex-direction:column; align-items:center; text-align:center; padding:56px 38px 30px; overflow:hidden; }
         .lp-front { background:#fff; box-shadow:0 28px 56px -30px rgba(10,22,40,.42), 0 0 0 1px var(--line); }
@@ -243,9 +136,9 @@ export default function LandingPage() {
         .lp-back-link { position:relative; margin-top:18px; background:none; border:none; font:inherit; font-size:13px; color:#8b97ad; cursor:pointer; }
         .lp-back-link:hover { color:#fff; }
 
-        /* bottom: arcade drawing + signature */
-        .lp-bottom { position:relative; flex:1; min-height:190px; display:flex; align-items:flex-end; justify-content:center; padding:36px 24px 22px; overflow:hidden; }
-        .lp-arcade { position:absolute; left:50%; bottom:0; width:1440px; max-width:none; height:320px; transform:translateX(-50%); opacity:.14; pointer-events:none; }
+        /* bottom: chapel sketch + signature */
+        .lp-bottom { position:relative; flex:1; min-height:580px; display:flex; align-items:flex-end; justify-content:center; padding:36px 24px 22px; overflow:hidden; }
+        .lp-chapel { position:absolute; left:50%; bottom:-20px; width:1180px; max-width:none; height:auto; transform:translateX(-50%); opacity:.42; pointer-events:none; user-select:none; }
         .lp-glow { position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none;
           background:radial-gradient(ellipse 60% 70% at 50% 100%, rgba(201,168,76,.22), transparent 70%); }
         .lp-patch { position:absolute; left:50%; bottom:0; width:760px; max-width:100%; height:150px; transform:translateX(-50%); pointer-events:none;
@@ -267,6 +160,8 @@ export default function LandingPage() {
           .lp-band { padding:40px 18px 150px; }
           .lp-cards { grid-template-columns:minmax(0, 360px); gap:22px; margin-top:-120px; }
           .lp-flip { height:380px; }
+          .lp-bottom { min-height:330px; padding-bottom:18px; }
+          .lp-chapel { width:125%; bottom:-6px; }
           .lp-sig { gap:16px; }
           .lp-sig .lp-rule, .lp-sig-logo { display:none; }
           .lp-quote { font-size:17px; }
@@ -305,7 +200,7 @@ export default function LandingPage() {
         </section>
 
         {/* FLIP CARDS */}
-        <div className={`lp-cards${flipped ? ' has' : ''}`}>
+        <div className="lp-cards">
           {ROLES.map(role => {
             const on = flipped === role.key
             return (
@@ -350,13 +245,9 @@ export default function LandingPage() {
           })}
         </div>
 
-        {/* BOTTOM — arcade drawing + signature */}
+        {/* BOTTOM — chapel sketch + signature */}
         <section className="lp-bottom">
-          <svg className="lp-arcade" viewBox="0 0 1440 320" aria-hidden="true">
-            <g fill="none" stroke="#0a1628" strokeLinecap="round" strokeLinejoin="round">
-              {arcade.map((s, i) => <path key={i} d={s.d} strokeWidth={s.w} />)}
-            </g>
-          </svg>
+          <Image className="lp-chapel" src="/chapel-sketch.png" alt="" width={1400} height={802} aria-hidden="true" />
           <div className="lp-glow" />
           <div className="lp-patch" />
           <div className="lp-sig">
