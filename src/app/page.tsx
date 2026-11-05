@@ -1,445 +1,375 @@
 'use client'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
+/* ------------------------------------------------------------------
+   Background drawing: classical arcade (columns + arches + railing)
+   with a palm tree on each side. Generated in code, no image needed.
+------------------------------------------------------------------- */
+type Shape = { d: string; w: number }
+
+function buildArcade(): Shape[] {
+  const out: Shape[] = []
+  const f = (n: number) => n.toFixed(1)
+  const pa = (d: string, w = 1.4) => out.push({ d, w })
+  const ln = (x1: number, y1: number, x2: number, y2: number, w = 1.4) =>
+    pa(`M${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}`, w)
+  const ci = (x: number, y: number, r: number, w = 1) =>
+    pa(`M${f(x - r)} ${f(y)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`, w)
+
+  const G = 320
+  const x0 = 210, x1 = 1230, n = 10, bay = (x1 - x0) / n, cw = 16, cap = G - 128
+
+  // steps
+  ln(x0 - 30, G, x1 + 30, G, 2.4); ln(x0 - 20, G - 6, x1 + 20, G - 6, 1.4); ln(x0 - 10, G - 12, x1 + 10, G - 12, 1.2)
+
+  // columns: base, tapered fluted shaft, capital
+  for (let i = 0; i <= n; i++) {
+    const cx = x0 + i * bay
+    pa(`M${cx - cw / 2 - 5} ${G - 12}V${G - 20}H${cx + cw / 2 + 5}V${G - 12}`, 1.2)
+    pa(`M${cx - cw / 2 - 3} ${G - 20}Q${cx} ${G - 27} ${cx + cw / 2 + 3} ${G - 20}`, 1.1)
+    pa(`M${cx - cw / 2} ${G - 24}Q${cx - cw / 2 - 1.5} ${(G - 24 + cap) / 2} ${cx - cw / 2 + 1.5} ${cap + 4}`, 1.4)
+    pa(`M${cx + cw / 2} ${G - 24}Q${cx + cw / 2 + 1.5} ${(G - 24 + cap) / 2} ${cx + cw / 2 - 1.5} ${cap + 4}`, 1.4)
+    for (const k of [-3, 3]) ln(cx + k, G - 28, cx + k * 0.8, cap + 8, 0.7)
+    ln(cx - cw / 2 + 1, cap + 4, cx + cw / 2 - 1, cap + 4, 1)
+    pa(`M${cx - cw / 2 + 1} ${cap + 4}Q${cx - cw / 2 - 6} ${cap} ${cx - cw / 2 - 8} ${cap - 3}H${cx + cw / 2 + 8}Q${cx + cw / 2 + 6} ${cap} ${cx + cw / 2 - 1} ${cap + 4}`, 1.2)
+    pa(`M${cx - cw / 2 - 9} ${cap - 3}V${cap - 9}H${cx + cw / 2 + 9}V${cap - 3}`, 1.2)
+  }
+
+  // arches with double outline, keystone, and roundels between arches
+  for (let i = 0; i < n; i++) {
+    const a = x0 + i * bay + cw / 2 + 9, b = x0 + (i + 1) * bay - cw / 2 - 9
+    const r = (b - a) / 2, m = (a + b) / 2, y = cap - 9
+    pa(`M${f(a)} ${y}A${f(r)} ${f(r)} 0 0 1 ${f(b)} ${y}`, 1.5)
+    pa(`M${f(a - 6)} ${y}A${f(r + 6)} ${f(r + 6)} 0 0 1 ${f(b + 6)} ${y}`, 1)
+    const top = y - r - 6
+    pa(`M${f(m - 6)} ${f(top - 2)}L${f(m - 4)} ${f(top + 12)}H${f(m + 4)}L${f(m + 6)} ${f(top - 2)}Z`, 1)
+    if (i < n - 1) ci(x0 + (i + 1) * bay, y - r - 2, 7, 0.9)
+  }
+
+  // entablature, cornice, balustrade
+  const ey = cap - 9 - (bay - cw - 18) / 2 - 16
+  ln(x0 - 14, ey, x1 + 14, ey, 1.4); ln(x0 - 14, ey - 12, x1 + 14, ey - 12, 1.2)
+  ln(x0 - 22, ey - 16, x1 + 22, ey - 16, 1.6); ln(x0 - 26, ey - 20, x1 + 26, ey - 20, 1.2)
+  const by = ey - 20
+  ln(x0 - 16, by - 30, x1 + 16, by - 30, 1.4)
+  for (let bx = x0 - 10; bx <= x1 + 10; bx += 13) {
+    pa(`M${f(bx - 2.5)} ${f(by)}Q${f(bx - 6)} ${f(by - 10)} ${f(bx - 2)} ${f(by - 15)}Q${f(bx - 4)} ${f(by - 22)} ${f(bx - 2.5)} ${f(by - 30)}M${f(bx + 2.5)} ${f(by)}Q${f(bx + 6)} ${f(by - 10)} ${f(bx + 2)} ${f(by - 15)}Q${f(bx + 4)} ${f(by - 22)} ${f(bx + 2.5)} ${f(by - 30)}`, 0.8)
+  }
+  for (let i = 0; i <= n; i += 2) {
+    const cx = x0 + i * bay
+    pa(`M${cx - 8} ${f(by)}V${f(by - 32)}H${cx + 8}V${f(by)}`, 1.1)
+  }
+
+  // palm tree: tapered ringed trunk + drooping leafy fronds
+  const palm = (bx: number, h: number, lean: number) => {
+    const tx = bx + lean, ty = G - h, wb = 10, wt = 5.5, c1 = bx + lean * 0.15
+    pa(`M${bx - wb} ${G}Q${f(c1 - (wb + wt) / 2)} ${f(G - h * 0.55)} ${f(tx - wt)} ${ty + 6}`, 1.5)
+    pa(`M${bx + wb} ${G}Q${f(c1 + (wb + wt) / 2)} ${f(G - h * 0.55)} ${f(tx + wt)} ${ty + 6}`, 1.5)
+    for (let y = G - 10; y > ty + 18; y -= 13) {
+      const t = (G - y) / h
+      const xc = (1 - t) ** 2 * bx + 2 * (1 - t) * t * c1 + t * t * tx
+      const w = wb + (wt - wb) * t
+      pa(`M${f(xc - w)} ${y}Q${f(xc)} ${y - 3} ${f(xc + w)} ${y}`, 0.75)
+    }
+    const fronds: [number, number, number][] = [
+      [-178, 150, 10], [-150, 140, 40], [-120, 105, 55], [-90, 70, 62], [-60, 105, 55],
+      [-30, 140, 40], [-2, 150, 10], [160, 110, -20], [20, 110, -20],
+    ]
+    for (const [ang, L, lift] of fronds) {
+      const r = (ang * Math.PI) / 180
+      const ex = tx + Math.cos(r) * L
+      const eyy = ty + 60 - lift * 0.2 + (Math.abs(Math.cos(r)) > 0.6 ? 25 : 0)
+      const cx = tx + Math.cos(r) * L * 0.5, cy = ty - lift
+      pa(`M${tx} ${ty}Q${f(cx)} ${f(cy)} ${f(ex)} ${f(eyy)}`, 1.1)
+      for (let k = 1; k < 11; k++) {
+        const t = k / 11
+        const px = (1 - t) ** 2 * tx + 2 * (1 - t) * t * cx + t * t * ex
+        const py = (1 - t) ** 2 * ty + 2 * (1 - t) * t * cy + t * t * eyy
+        const dx = 2 * (1 - t) * (cx - tx) + 2 * t * (ex - cx)
+        const dy = 2 * (1 - t) * (cy - ty) + 2 * t * (eyy - cy)
+        const d = Math.hypot(dx, dy), ux = dx / d, uy = dy / d
+        const ll = 10 + 26 * Math.sin(Math.PI * t)
+        for (const sg of [1, -1]) {
+          pa(`M${f(px)} ${f(py)}Q${f(px + ux * ll * 0.15 + sg * -uy * ll * 0.3)} ${f(py + ll * 0.3)} ${f(px + ux * ll * 0.45 + sg * -uy * ll * 0.25)} ${f(py + ll * 0.85)}`, 0.6)
+        }
+      }
+    }
+    for (const ox of [-4, 4, 0]) ci(tx + ox, ty + 7, 3.4, 0.9)
+  }
+  palm(90, 270, 14)
+  palm(1350, 270, -14)
+
+  // shrubs at both ends
+  for (const sx of [x0 - 48, x1 + 48]) {
+    pa(`M${sx - 30} ${G}Q${sx - 26} ${G - 22} ${sx - 10} ${G - 20}Q${sx - 4} ${G - 34} ${sx + 10} ${G - 24}Q${sx + 26} ${G - 26} ${sx + 30} ${G}`, 1)
+  }
+  return out
+}
+
+/* ------------------------------------------------------------------
+   Role cards
+------------------------------------------------------------------- */
+type Role = {
+  key: string
+  title: string
+  desc: string
+  frontCta: string
+  welcome: string
+  signIn: { label: string; href: string }
+  register?: { label: string; href: string }
+  icon: JSX.Element
+}
+
+const iconProps = {
+  width: 46, height: 46, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+  strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+}
+
+const ROLES: Role[] = [
+  {
+    key: 'student',
+    title: 'Student',
+    desc: 'Request a 30-minute session in any math or science course.',
+    frontCta: 'Get help',
+    welcome: 'Welcome, Wolverine',
+    signIn: { label: 'Sign in as Student', href: '/student/login' },
+    register: { label: 'Create account', href: '/student/register' },
+    icon: (
+      <svg {...iconProps}>
+        <path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4z" />
+        <path d="M20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'tutor',
+    title: 'Volunteer Tutor',
+    desc: 'Set your hours and earn service credit for every session.',
+    frontCta: 'Start tutoring',
+    welcome: 'Welcome, Tutor',
+    signIn: { label: 'Sign in as Tutor', href: '/tutor/login' },
+    register: { label: 'Create account', href: '/tutor/register' },
+    icon: (
+      <svg {...iconProps}>
+        <circle cx="9" cy="7" r="3" />
+        <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        <path d="M16 4l1.5 3 3 .4-2.2 2.1.5 3-2.8-1.5" />
+      </svg>
+    ),
+  },
+  {
+    key: 'proctor',
+    title: 'Proctor',
+    desc: 'Pairings, classroom, grade progress and tutor hours.',
+    frontCta: 'Open dashboard',
+    welcome: 'Proctor Access',
+    signIn: { label: 'Sign in', href: '/proctor/login' },
+    icon: (
+      <svg {...iconProps}>
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3" />
+      </svg>
+    ),
+  },
+]
+
 export default function LandingPage() {
+  const [flipped, setFlipped] = useState<string | null>(null)
+  const arcade = useMemo(buildArcade, [])
+
+  const toggle = (key: string) => setFlipped(prev => (prev === key ? null : key))
+
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,400;0,500;1,400&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Barlow', sans-serif; }
-        .wp2pt-wrap { min-height: 100vh; background: #fff; overflow-x: hidden; }
-        .main-header {
-          background: #0a1628;
-          padding: 0 3rem;
-          height: 68px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-          border-bottom: 3px solid #c9a84c;
-        }
-        .header-left { display: flex; align-items: center; gap: 1rem; }
-        .header-school-name {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 800;
-          font-size: 1rem;
-          color: #fff;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          line-height: 1.1;
-        }
-        .header-school-sub {
-          font-family: 'Barlow', sans-serif;
-          font-size: 0.62rem;
-          color: #94a3b8;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        .header-right { display: flex; align-items: center; gap: 2rem; }
-        .header-nav { display: flex; gap: 1.75rem; }
-        .header-nav a {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.72rem;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: #e2e8f0;
-          text-decoration: none;
-          transition: color 0.15s;
-        }
-        .header-nav a:hover { color: #c9a84c; }
-        .hero {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          background: #f3f4f6;
-          overflow: hidden;
-          padding: 2.5rem 2rem 3rem;
-          min-height: calc(100vh - 68px);
-        }
-        .hero-watermark {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          opacity: 0.05;
-          pointer-events: none;
-        }
-        .hero-b-watermark {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          opacity: 0.04;
-          pointer-events: none;
-          user-select: none;
-        }
-        .hero-content {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          max-width: 680px;
-          width: 100%;
-        }
-        .gold-rule { width: 48px; height: 2px; background: #c9a84c; }
-        .hero-amdg {
-          font-family: Georgia, serif;
-          font-size: 0.6rem;
-          letter-spacing: 0.3em;
-          color: #6b7280;
-          text-transform: uppercase;
-          margin: 0.9rem 0;
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-        .hero-amdg::before, .hero-amdg::after { content: '+'; color: #c9a84c; font-size: 0.85rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800;900&family=Barlow:wght@400;500&display=swap');
+        :root { --navy:#0a1628; --navy2:#13264a; --gold:#c9a84c; --sand:#f5f4f0; --ink:#4b5563; --line:#e7e2d6; }
+        html, body { margin:0; padding:0; background:var(--sand); }
+        .lp { min-height:100vh; display:flex; flex-direction:column; background:var(--sand); color:var(--navy); font-family:'Barlow', system-ui, sans-serif; overflow-x:hidden; }
+        .lp *, .lp *::before, .lp *::after { box-sizing:border-box; }
 
-        .hero-title {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: clamp(3rem, 8vw, 5.5rem);
-          color: #0a1628;
-          letter-spacing: -0.01em;
-          text-transform: uppercase;
-          margin: 1rem 0 0.5rem;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.06em;
-        }
-        .hero-title-row { display: block; line-height: 0.88; }
-        .hero-title-gold { color: #c9a84c; }
+        /* header */
+        .lp-head { height:76px; display:flex; align-items:center; justify-content:space-between; padding:0 56px; background:var(--navy); }
+        .lp-side { display:flex; align-items:center; gap:14px; width:320px; }
+        .lp-side.r { justify-content:flex-end; text-align:right; }
+        .lp-name { font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:18px; color:#fff; letter-spacing:.06em; text-transform:uppercase; line-height:1; }
+        .lp-small { font-size:11px; color:#94a3b8; letter-spacing:.12em; text-transform:uppercase; margin-top:3px; }
+        .lp-amdg { font-family:Georgia, serif; font-size:11px; letter-spacing:.32em; color:var(--gold); }
 
-        .hero-sub {
-          font-family: 'Barlow', sans-serif;
-          font-size: 0.92rem;
-          color: #4b5563;
-          line-height: 1.7;
-          max-width: 420px;
-          margin: 0.9rem auto 1.75rem;
+        /* navy band */
+        .lp-band { position:relative; overflow:hidden; text-align:center; padding:44px 24px 150px;
+          background:linear-gradient(180deg, var(--navy) 0%, var(--navy2) 100%); border-bottom:3px solid var(--gold); }
+        .lp-band-b { position:absolute; left:50%; top:-40px; transform:translateX(-50%); opacity:.06; pointer-events:none; }
+        .lp-title { position:relative; margin:0; font-family:'Barlow Condensed', sans-serif; font-weight:900; text-transform:uppercase;
+          font-size:clamp(40px, 5.8vw, 84px); line-height:.9; color:#fff; }
+        .lp-title span { color:var(--gold); }
+        .lp-sub { position:relative; margin:14px auto 0; max-width:640px; font-size:17px; line-height:1.6; color:#b8c2d4; }
+
+        /* cards */
+        .lp-cards { position:relative; z-index:2; display:grid; grid-template-columns:repeat(3, 370px); gap:30px;
+          justify-content:center; margin:-120px auto 0; padding:0 24px; perspective:1600px; }
+        .lp-flip { position:relative; height:400px; cursor:pointer; transform-style:preserve-3d; outline:none;
+          transition:transform .75s cubic-bezier(.2,.8,.2,1), opacity .4s, filter .4s; }
+        .lp-flip:hover:not(.on) { transform:translateY(-6px); }
+        .lp-flip:focus-visible .lp-front { box-shadow:0 0 0 3px var(--gold), 0 28px 56px -30px rgba(10,22,40,.42); }
+        .lp-flip.on { transform:rotateY(180deg) scale(1.03); }
+        .lp-cards.has .lp-flip:not(.on) { opacity:.55; filter:saturate(.6); }
+        .lp-face { position:absolute; inset:0; border-radius:185px 185px 28px 28px; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+          display:flex; flex-direction:column; align-items:center; text-align:center; padding:56px 38px 30px; overflow:hidden; }
+        .lp-front { background:#fff; box-shadow:0 28px 56px -30px rgba(10,22,40,.42), 0 0 0 1px var(--line); }
+        .lp-front::before { content:""; position:absolute; inset:10px; border-radius:176px 176px 20px 20px; border:1.5px solid #f4ead0; pointer-events:none; }
+        .lp-ic { width:100px; height:100px; border-radius:50%; background:var(--navy); color:var(--gold); display:flex; align-items:center; justify-content:center;
+          box-shadow:0 0 0 4px #fff, 0 0 0 6px var(--gold); margin-bottom:24px; flex-shrink:0; }
+        .lp-front h3, .lp-back h3 { margin:0; font-family:'Barlow Condensed', sans-serif; font-weight:900; text-transform:uppercase; line-height:1; }
+        .lp-front h3 { font-size:38px; }
+        .lp-front p { margin:12px 0 0; font-size:15px; line-height:1.55; color:var(--ink); }
+        .lp-go { margin-top:auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--navy);
+          border-radius:999px; padding:10px 20px; background:var(--sand); transition:background .2s; }
+        .lp-flip:hover .lp-go { background:#efe6cc; }
+        .lp-back { background:var(--navy); color:#fff; transform:rotateY(180deg); justify-content:center; padding-top:40px;
+          box-shadow:0 34px 70px -28px rgba(10,22,40,.75), 0 0 0 2px var(--gold); }
+        .lp-back-b { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); opacity:.07; pointer-events:none; }
+        .lp-back h3 { position:relative; font-size:36px; color:var(--gold); }
+        .lp-pill { position:relative; display:flex; align-items:center; justify-content:center; width:100%; margin-top:12px; padding:16px; border-radius:999px;
+          font-size:16px; font-weight:500; text-decoration:none; transition:transform .15s, background .2s, color .2s; }
+        .lp-pill:hover { transform:translateY(-1px); }
+        .lp-pill.first { margin-top:28px; }
+        .lp-pill.gold { background:var(--gold); color:var(--navy); }
+        .lp-pill.gold:hover { background:#d8ba63; }
+        .lp-pill.ghost { color:#fff; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5); }
+        .lp-pill.ghost:hover { background:rgba(255,255,255,.08); }
+        .lp-back-link { position:relative; margin-top:18px; background:none; border:none; font:inherit; font-size:13px; color:#8b97ad; cursor:pointer; }
+        .lp-back-link:hover { color:#fff; }
+
+        /* bottom: arcade drawing + signature */
+        .lp-bottom { position:relative; flex:1; min-height:190px; display:flex; align-items:flex-end; justify-content:center; padding:36px 24px 22px; overflow:hidden; }
+        .lp-arcade { position:absolute; left:50%; bottom:0; width:1440px; max-width:none; height:320px; transform:translateX(-50%); opacity:.14; pointer-events:none; }
+        .lp-glow { position:absolute; left:0; right:0; bottom:0; height:420px; pointer-events:none;
+          background:radial-gradient(ellipse 60% 70% at 50% 100%, rgba(201,168,76,.22), transparent 70%); }
+        .lp-patch { position:absolute; left:50%; bottom:0; width:760px; max-width:100%; height:150px; transform:translateX(-50%); pointer-events:none;
+          background:radial-gradient(ellipse 50% 60% at 50% 70%, rgba(245,244,240,.95), rgba(245,244,240,0) 75%); }
+        .lp-sig { position:relative; display:flex; align-items:center; gap:28px; }
+        .lp-rule { width:1px; height:46px; background:#d9d2bf; }
+        .lp-quote { font-family:Georgia, serif; font-style:italic; font-size:19px; color:var(--navy); text-align:center; }
+        .lp-attr { font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:#8a8f98; margin-top:6px; text-align:center; }
+
+        @media (max-width: 1240px) {
+          .lp-cards { grid-template-columns:repeat(3, minmax(0, 330px)); gap:22px; }
+          .lp-face { padding:56px 26px 30px; }
+          .lp-front h3 { font-size:32px; }
         }
-        .role-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          width: 100%;
-          max-width: 580px;
-          border: 2px solid #0a1628;
+        @media (max-width: 900px) {
+          .lp-head { padding:0 18px; height:72px; }
+          .lp-side { width:auto; }
+          .lp-amdg, .lp-side.r .lp-text { display:none; }
+          .lp-band { padding:40px 18px 150px; }
+          .lp-cards { grid-template-columns:minmax(0, 360px); gap:22px; margin-top:-120px; }
+          .lp-flip { height:380px; }
+          .lp-sig { gap:16px; }
+          .lp-sig .lp-rule, .lp-sig-logo { display:none; }
+          .lp-quote { font-size:17px; }
+          .lp-attr { letter-spacing:.14em; }
         }
-        .role-cell {
-          display: flex;
-          flex-direction: column;
-          border-right: 2px solid #0a1628;
-        }
-        .role-cell:last-child { border-right: none; }
-        .role-btn-main {
-          background: #0a1628;
-          color: #c9a84c;
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 800;
-          font-size: 0.68rem;
-          letter-spacing: 0.08em;
-          line-height: 1.3;
-          text-transform: uppercase;
-          padding: 0.85rem 0.5rem;
-          text-decoration: none;
-          text-align: center;
-          border-bottom: 1px solid #1e3a5f;
-          transition: all 0.15s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 3.4rem;
-        }
-        .role-btn-main:hover { background: #c9a84c; color: #0a1628; }
-        .role-btn-main.green { background: #155e3b; color: #fff; }
-        .role-btn-main.green:hover { background: #c9a84c; color: #0a1628; }
-        .role-btn-main.red { background: #7c2d12; color: #fff; border-bottom: none; }
-        .role-btn-main.red:hover { background: #c9a84c; color: #0a1628; }
-        .role-btn-register {
-          background: #fff;
-          color: #0a1628;
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.62rem;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          padding: 0.55rem 0.5rem;
-          text-decoration: none;
-          text-align: center;
-          display: block;
-          transition: background 0.15s;
-        }
-        .role-btn-register:hover { background: #f3f4f6; }
-        .role-btn-spacer { padding: 0.55rem; background: #fff; }
-        .stats-bar { background: #c9a84c; padding: 2.25rem 3rem; }
-        .stats-grid {
-          max-width: 860px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          text-align: center;
-        }
-        .stat-item { padding: 0 1rem; border-right: 1px solid rgba(10,22,40,0.2); }
-        .stat-item:last-child { border-right: none; }
-        .stat-num {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 900;
-          font-size: 2.5rem;
-          color: #0a1628;
-          line-height: 1;
-        }
-        .stat-label {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.62rem;
-          color: #0a1628;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          margin-top: 0.25rem;
-          opacity: 0.7;
-        }
-        .quote-section {
-          background: #f3f4f6;
-          padding: 5rem 3rem;
-          text-align: center;
-          position: relative;
-          overflow: hidden;
-        }
-        .quote-cross { position: absolute; opacity: 0.1; }
-        .quote-b-bg {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          opacity: 0.035;
-          pointer-events: none;
-        }
-        .quote-inner { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; }
-        .quote-text {
-          font-family: Georgia, serif;
-          font-style: italic;
-          font-size: clamp(1rem, 2.5vw, 1.2rem);
-          color: #0a1628;
-          line-height: 1.85;
-        }
-        .quote-attr {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.68rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #6b7280;
-          margin-top: 1.5rem;
-        }
-        .footer { background: #0a1628; border-top: 4px solid #c9a84c; padding: 2rem 3rem; }
-        .footer-inner {
-          max-width: 960px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1fr auto 1fr;
-          align-items: center;
-          gap: 2rem;
-        }
-        .footer-left { display: flex; align-items: center; gap: 0.75rem; }
-        .footer-brand {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 800;
-          font-size: 0.88rem;
-          color: #c9a84c;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
-        .footer-sub { font-family: 'Barlow', sans-serif; font-size: 0.62rem; color: #475569; }
-        .footer-center { text-align: center; }
-        .footer-amdg {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 800;
-          font-size: 0.68rem;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          color: #c9a84c;
-          margin-bottom: 0.25rem;
-        }
-        .footer-school { font-family: 'Barlow', sans-serif; font-size: 0.6rem; color: #475569; }
-        .footer-right { display: flex; gap: 1.5rem; justify-content: flex-end; }
-        .footer-link {
-          font-family: 'Barlow Condensed', sans-serif;
-          font-weight: 700;
-          font-size: 0.65rem;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: #64748b;
-          text-decoration: none;
-          transition: color 0.15s;
-        }
-        .footer-link:hover { color: #c9a84c; }
-        @media (max-width: 768px) {
-          .main-header { padding: 0 1.25rem; }
-          .header-nav { display: none; }
-          .hero { padding: 1.5rem 1.25rem 2rem; }
-          .role-grid { grid-template-columns: 1fr; border: none; gap: 0.5rem; max-width: 320px; }
-          .role-cell { border-right: none; border: 2px solid #0a1628; }
-          .stats-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-          .stat-item { border-right: none; }
-          .footer-inner { grid-template-columns: 1fr; text-align: center; }
-          .footer-left { justify-content: center; }
-          .footer-right { justify-content: center; }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-flip, .lp-pill { transition:none; }
         }
       `}</style>
 
-      <div className="wp2pt-wrap">
-
-        {/* ONE HEADER ONLY */}
-        <header className="main-header">
-          <div className="header-left">
-            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit Seal" width={48} height={48} style={{ objectFit: 'contain' }} />
+      <div className="lp">
+        {/* HEADER — school identity only, no sign-in links */}
+        <header className="lp-head">
+          <div className="lp-side">
+            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit seal" width={50} height={50} />
             <div>
-              <div className="header-school-name">Belen Jesuit</div>
-              <div className="header-school-sub">Preparatory School</div>
+              <div className="lp-name">Belen Jesuit</div>
+              <div className="lp-small">Preparatory School</div>
             </div>
           </div>
-          <div className="header-right">
-            <nav className="header-nav">
-              <Link href="/student/login">Student</Link>
-              <Link href="/tutor/login">Volunteer Tutor</Link>
-              <Link href="/proctor/login">Proctor</Link>
-            </nav>
+          <div className="lp-amdg">+ &nbsp;AMDG&nbsp; +</div>
+          <div className="lp-side r">
+            <div className="lp-text">
+              <div className="lp-name">WP2PT</div>
+              <div className="lp-small">Peer-to-Peer Tutoring</div>
+            </div>
+            <Image src="/clipart765116.png" alt="Belen B" width={39} height={50} />
           </div>
         </header>
 
-        {/* HERO */}
-        <section className="hero">
-          <svg className="hero-watermark" viewBox="0 0 1000 580" aria-hidden="true">
-            <rect x="200" y="240" width="600" height="320" fill="none" stroke="#0a1628" strokeWidth="2"/>
-            <polyline points="160,240 500,110 840,240" fill="none" stroke="#0a1628" strokeWidth="2.5"/>
-            <line x1="500" y1="58" x2="500" y2="110" stroke="#0a1628" strokeWidth="3"/>
-            <line x1="476" y1="80" x2="524" y2="80" stroke="#0a1628" strokeWidth="3"/>
-            <path d="M425 560 L425 375 Q500 300 575 375 L575 560" fill="none" stroke="#0a1628" strokeWidth="2"/>
-            <path d="M230 560 L230 410 Q258 372 286 410 L286 560" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <path d="M314 560 L314 410 Q342 372 370 410 L370 560" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <path d="M630 560 L630 410 Q658 372 686 410 L686 560" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <path d="M714 560 L714 410 Q742 372 770 410 L770 560" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <rect x="222" y="258" width="55" height="65" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <rect x="308" y="258" width="55" height="65" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <rect x="637" y="258" width="55" height="65" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <rect x="723" y="258" width="55" height="65" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <line x1="95" y1="560" x2="105" y2="340" stroke="#0a1628" strokeWidth="2"/>
-            <ellipse cx="100" cy="318" rx="48" ry="26" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <ellipse cx="78" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
-            <ellipse cx="122" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
-            <line x1="905" y1="560" x2="895" y2="340" stroke="#0a1628" strokeWidth="2"/>
-            <ellipse cx="900" cy="318" rx="48" ry="26" fill="none" stroke="#0a1628" strokeWidth="1.5"/>
-            <ellipse cx="878" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
-            <ellipse cx="922" cy="302" rx="36" ry="18" fill="none" stroke="#0a1628" strokeWidth="1.2"/>
+        {/* NAVY BAND */}
+        <section className="lp-band">
+          <Image className="lp-band-b" src="/clipart765116.png" alt="" width={434} height={560} aria-hidden="true" />
+          <h1 className="lp-title">Wolverines <span>Peer&#8209;to&#8209;Peer</span> Tutoring</h1>
+          <p className="lp-sub">Belen students get matched with a volunteer tutor before they walk into the room.</p>
+        </section>
+
+        {/* FLIP CARDS */}
+        <div className={`lp-cards${flipped ? ' has' : ''}`}>
+          {ROLES.map(role => {
+            const on = flipped === role.key
+            return (
+              <div
+                key={role.key}
+                className={`lp-flip${on ? ' on' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-pressed={on}
+                aria-label={`${role.title}: ${on ? 'showing sign-in options' : 'show sign-in options'}`}
+                onClick={() => toggle(role.key)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(role.key) } }}
+              >
+                <div className="lp-face lp-front" aria-hidden={on}>
+                  <div className="lp-ic">{role.icon}</div>
+                  <h3>{role.title}</h3>
+                  <p>{role.desc}</p>
+                  <span className="lp-go">{role.frontCta} →</span>
+                </div>
+                <div className="lp-face lp-back" aria-hidden={!on}>
+                  <Image className="lp-back-b" src="/clipart765116.png" alt="" width={263} height={340} aria-hidden="true" />
+                  <h3>{role.welcome}</h3>
+                  <Link href={role.signIn.href} className="lp-pill gold first" tabIndex={on ? 0 : -1} onClick={e => e.stopPropagation()}>
+                    {role.signIn.label}
+                  </Link>
+                  {role.register && (
+                    <Link href={role.register.href} className="lp-pill ghost" tabIndex={on ? 0 : -1} onClick={e => e.stopPropagation()}>
+                      {role.register.label}
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="lp-back-link"
+                    tabIndex={on ? 0 : -1}
+                    onClick={e => { e.stopPropagation(); setFlipped(null) }}
+                  >
+                    ↺ Choose a different role
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* BOTTOM — arcade drawing + signature */}
+        <section className="lp-bottom">
+          <svg className="lp-arcade" viewBox="0 0 1440 320" aria-hidden="true">
+            <g fill="none" stroke="#0a1628" strokeLinecap="round" strokeLinejoin="round">
+              {arcade.map((s, i) => <path key={i} d={s.d} strokeWidth={s.w} />)}
+            </g>
           </svg>
-          <div className="hero-b-watermark" aria-hidden="true">
-            <Image src="/clipart765116.png" alt="" width={480} height={530} style={{ objectFit: 'contain' }} />
-          </div>
-          <div className="hero-content">
-            <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit" width={90} height={90} style={{ objectFit: 'contain', marginBottom: '0.75rem' }} />
-            <div className="gold-rule" />
-            <div className="hero-amdg">Ad Majorem Dei Gloriam</div>
-            <h1 className="hero-title">
-              <span className="hero-title-row">Wolverines</span>
-              <span className="hero-title-row hero-title-gold">Peer-to-Peer</span>
-              <span className="hero-title-row">Tutoring</span>
-            </h1>
-            <p className="hero-sub">
-              A student-built platform connecting Belen Jesuit students with volunteer tutors — automatically matched, confirmed by email, and tracked by the Proctor.
-            </p>
-            <div className="role-grid">
-              <div className="role-cell">
-                <Link href="/student/login" className="role-btn-main">Student Sign In</Link>
-                <Link href="/student/register" className="role-btn-register">Register</Link>
-              </div>
-              <div className="role-cell">
-                <Link href="/tutor/login" className="role-btn-main green">Volunteer Tutor Sign In</Link>
-                <Link href="/tutor/register" className="role-btn-register">Register</Link>
-              </div>
-              <div className="role-cell">
-                <Link href="/proctor/login" className="role-btn-main red">Proctor Sign In</Link>
-                <div className="role-btn-spacer" />
-              </div>
+          <div className="lp-glow" />
+          <div className="lp-patch" />
+          <div className="lp-sig">
+            <Image className="lp-sig-logo" src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Jesuit seal" width={58} height={58} />
+            <div className="lp-rule" />
+            <div>
+              <div className="lp-quote">“Built by a Wolverine, for Wolverines.”</div>
+              <div className="lp-attr">Diego A. Núñez · Class of 2027</div>
             </div>
+            <div className="lp-rule" />
+            <Image className="lp-sig-logo" src="/clipart765116.png" alt="Belen B" width={46} height={60} />
           </div>
         </section>
-
-        {/* STATS */}
-        <section className="stats-bar">
-          <div className="stats-grid">
-            {[
-              { n: '20+', label: 'Math Courses' },
-              { n: '17+', label: 'Science Courses' },
-              { n: '30 min', label: 'Per Session' },
-              { n: '100%', label: 'Free to Wolverines' },
-            ].map(s => (
-              <div key={s.label} className="stat-item">
-                <div className="stat-num">{s.n}</div>
-                <div className="stat-label">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* QUOTE */}
-        <section className="quote-section">
-          <div className="quote-cross" style={{ top: '2rem', left: '2rem' }}>
-            <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div className="quote-cross" style={{ top: '2rem', right: '2rem' }}>
-            <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div className="quote-cross" style={{ bottom: '2rem', left: '2rem' }}>
-            <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div className="quote-cross" style={{ bottom: '2rem', right: '2rem' }}>
-            <svg width="28" height="28" viewBox="0 0 28 28"><line x1="14" y1="0" x2="14" y2="28" stroke="#0a1628" strokeWidth="2"/><line x1="0" y1="14" x2="28" y2="14" stroke="#0a1628" strokeWidth="2"/></svg>
-          </div>
-          <div className="quote-b-bg">
-            <Image src="/clipart765116.png" alt="" width={400} height={440} style={{ objectFit: 'contain' }} aria-hidden="true" />
-          </div>
-          <div className="quote-inner">
-            <div className="gold-rule" style={{ margin: '0 auto 1.75rem' }} />
-            <blockquote className="quote-text">"Built by a Wolverine, for Wolverines."</blockquote>
-            <div className="quote-attr">Diego A. Núñez &nbsp;·&nbsp; Class of 2027</div>
-            <div style={{ marginTop: '1.75rem', display: 'flex', justifyContent: 'center' }}>
-              <Image src="/Belen_Jesuit_Preparatory_School_seal.png" alt="Belen Seal" width={56} height={56} style={{ objectFit: 'contain', opacity: 0.45 }} />
-            </div>
-          </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="footer">
-          <div className="footer-inner">
-            <div className="footer-left">
-              <Image src="/clipart765116.png" alt="Belen B" width={32} height={36} style={{ objectFit: 'contain' }} />
-              <div>
-                <div className="footer-brand">WP2PT</div>
-                <div className="footer-sub">Wolverines Peer-to-Peer Tutoring</div>
-              </div>
-            </div>
-            <div className="footer-center">
-              <div className="footer-amdg">Ad Majorem Dei Gloriam</div>
-              <div className="footer-school">Belen Jesuit Preparatory School · Miami, Florida</div>
-            </div>
-            <div className="footer-right">
-              <Link href="/student/login" className="footer-link">Students</Link>
-              <Link href="/tutor/login" className="footer-link">Tutors</Link>
-              <Link href="/proctor/login" className="footer-link">Proctor</Link>
-            </div>
-          </div>
-        </footer>
-
       </div>
     </>
   )
